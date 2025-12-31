@@ -91,4 +91,17 @@ describe("Parser", () => {
 			right: { type: "Number", value: 3 },
 		});
 	});
+	test("負の値をパースできる", () => {
+		const tokens: Token[] = [
+			{ type: "MINUS" },
+			{ type: "NUMBER", value: 1 },
+			{ type: "EOF" },
+		];
+		const expr = parse(tokens);
+		expect(expr).toEqual({
+			type: "UnaryOp",
+			operator: "-",
+			expr: { type: "Number", value: 1 },
+		});
+	});
 });

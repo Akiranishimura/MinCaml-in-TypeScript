@@ -10,6 +10,7 @@ import type { Token } from "../lexer/lexer";
 
 export type Expr =
 	| { type: "Number"; value: number }
+	| { type: "UnaryOp"; operator: "-"; expr: Expr }
 	| { type: "BinOp"; left: Expr; right: Expr; operator: "+" | "-" | "*" | "/" };
 
 export const parse = (tokens: Token[]): Expr => {
@@ -23,10 +24,14 @@ export const parse = (tokens: Token[]): Expr => {
 
 	const parseFactor = (): Expr => {
 		const token = currentToken();
-		advance();
-		if (token?.type === "NUMBER") {
+		if (token?.type === "MINUS") {
+			advance();
+			return { type: "UnaryOp", operator: "-", expr: parseFactor() };
+		} else if (token?.type === "NUMBER") {
+			advance();
 			return { type: "Number", value: token.value };
 		} else if (token?.type === "LPAREN") {
+			advance();
 			const expr = parseExpr();
 			if (currentToken()?.type !== "RPAREN") {
 				throw new Error("Unexpected token: " + currentToken()?.type);
