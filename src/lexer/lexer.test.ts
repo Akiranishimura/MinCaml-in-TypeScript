@@ -38,4 +38,40 @@ describe("Lexer", () => {
 	test("未知の文字でエラーを投げる", () => {
 		expect(() => tokenize("1 @ 2")).toThrow();
 	});
+
+	test("等号をトークン化できる", () => {
+		const tokens = tokenize("=");
+		expect(tokens).toEqual([{ type: "EQ" }, { type: "EOF" }]);
+	});
+
+	test("letをトークン化できる", () => {
+		const tokens = tokenize("let");
+		expect(tokens).toEqual([{ type: "LET" }, { type: "EOF" }]);
+	});
+
+	test("inをトークン化できる", () => {
+		const tokens = tokenize("in");
+		expect(tokens).toEqual([{ type: "IN" }, { type: "EOF" }]);
+	});
+
+	test("変数をトークン化できる", () => {
+		const tokens = tokenize("x");
+		expect(tokens).toEqual([{ type: "IDENT", value: "x" }, { type: "EOF" }]);
+	});
+
+	test("数字を含む変数をトークン化できる", () => {
+		const tokens = tokenize("x1");
+		expect(tokens).toEqual([{ type: "IDENT", value: "x1" }, { type: "EOF" }]);
+	});
+
+	test("変数宣言をトークン化できる", () => {
+		const tokens = tokenize("let x = 1");
+		expect(tokens).toEqual([
+			{ type: "LET" },
+			{ type: "IDENT", value: "x" },
+			{ type: "EQ" },
+			{ type: "NUMBER", value: 1 },
+			{ type: "EOF" },
+		]);
+	});
 });
