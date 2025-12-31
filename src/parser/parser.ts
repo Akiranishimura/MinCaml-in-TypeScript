@@ -3,15 +3,17 @@ import type { Token } from "../lexer/lexer";
 /**
  * 四則演算の文法 (EBNF):
  *
- * Expr   ::= Term (('+' | '-') Term)*
+ * Expr   ::= 'let' IDENT '=' Expr 'in' Expr | Term (('+' | '-') Term)*
  * Term   ::= Factor (('*' | '/') Factor)*
- * Factor ::= NUMBER | '(' Expr ')'
+ * Factor ::= NUMBER | '(' Expr ')' | IDENT
  */
 
 export type Expr =
 	| { type: "Number"; value: number }
 	| { type: "UnaryOp"; operator: "-"; expr: Expr }
-	| { type: "BinOp"; left: Expr; right: Expr; operator: "+" | "-" | "*" | "/" };
+	| { type: "BinOp"; left: Expr; right: Expr; operator: "+" | "-" | "*" | "/" }
+	| { type: "VAR"; name: string }
+	| { type: "LET"; name: string; value: Expr; body: Expr };
 
 export const parse = (tokens: Token[]): Expr => {
 	if (tokens.length === 0) {
@@ -38,6 +40,9 @@ export const parse = (tokens: Token[]): Expr => {
 			}
 			advance();
 			return expr;
+		} else if (token?.type === "IDENT") {
+			advance();
+			return { type: "VAR", name: token.value };
 		}
 		throw new Error("Unexpected token: " + token?.type);
 	};
@@ -56,7 +61,27 @@ export const parse = (tokens: Token[]): Expr => {
 		return left;
 	};
 	const parseExpr = (): Expr => {
+		if (currentToken()?.type === "LET") {
+			advance();
+			const expectedNameToken = currentToken();
+			const name =
+				expectedNameToken?.type === "IDENT" ? expectedNameToken.value : "";
+			advance();
+			if (currentToken()?.type !== "EQ") {
+				throw new Error("Unexpected token: " + currentToken()?.type);
+			}
+			advance();
+			const value = parseExpr();
+			if (currentToken()?.type !== "IN") {
+				throw new Error("Unexpected token: " + currentToken()?.type);
+			}
+			advance();
+			const body = parseExpr();
+			return { type: "LET", name, value, body };
+		}
+
 		let left = parseTerm();
+
 		while (
 			currentToken()?.type === "PLUS" ||
 			currentToken()?.type === "MINUS"
