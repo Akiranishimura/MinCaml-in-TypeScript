@@ -126,4 +126,77 @@ describe("Evaluator", () => {
 		const result = evaluate(ast);
 		expect(result).toBe(-1);
 	});
+
+	test("let式を評価できる", () => {
+		// let x = 5 in x
+		const ast: Expr = {
+			type: "LET",
+			name: "x",
+			value: { type: "Number", value: 5 },
+			body: { type: "VAR", name: "x" },
+		};
+		const result = evaluate(ast);
+		expect(result).toBe(5);
+	});
+
+	test("let式で変数を使った計算ができる", () => {
+		// let x = 5 in x + 1
+		const ast: Expr = {
+			type: "LET",
+			name: "x",
+			value: { type: "Number", value: 5 },
+			body: {
+				type: "BinOp",
+				left: { type: "VAR", name: "x" },
+				right: { type: "Number", value: 1 },
+				operator: "+",
+			},
+		};
+		const result = evaluate(ast);
+		expect(result).toBe(6);
+	});
+
+	test("ネストしたlet式を評価できる", () => {
+		// let x = 1 in let y = 2 in x + y
+		const ast: Expr = {
+			type: "LET",
+			name: "x",
+			value: { type: "Number", value: 1 },
+			body: {
+				type: "LET",
+				name: "y",
+				value: { type: "Number", value: 2 },
+				body: {
+					type: "BinOp",
+					left: { type: "VAR", name: "x" },
+					right: { type: "VAR", name: "y" },
+					operator: "+",
+				},
+			},
+		};
+		const result = evaluate(ast);
+		expect(result).toBe(3);
+	});
+
+	test("シャドーイングが正しく動作する", () => {
+		// let x = 1 in let x = 2 in x
+		const ast: Expr = {
+			type: "LET",
+			name: "x",
+			value: { type: "Number", value: 1 },
+			body: {
+				type: "LET",
+				name: "x",
+				value: { type: "Number", value: 2 },
+				body: { type: "VAR", name: "x" },
+			},
+		};
+		const result = evaluate(ast);
+		expect(result).toBe(2);
+	});
+
+	test("未定義の変数参照でエラーを投げる", () => {
+		const ast: Expr = { type: "VAR", name: "undefined_var" };
+		expect(() => evaluate(ast)).toThrow("Variable not found: undefined_var");
+	});
 });
