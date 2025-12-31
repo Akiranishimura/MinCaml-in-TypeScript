@@ -1,4 +1,4 @@
-type Token =
+export type Token =
 	| { type: "NUMBER"; value: number }
 	| { type: "PLUS" }
 	| { type: "MINUS" }
