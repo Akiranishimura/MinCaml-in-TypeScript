@@ -1,5 +1,13 @@
 import type { Token } from "../lexer/lexer";
 
+/**
+ * 四則演算の文法 (EBNF):
+ *
+ * Expr   ::= Term (('+' | '-') Term)*
+ * Term   ::= Factor (('*' | '/') Factor)*
+ * Factor ::= NUMBER | '(' Expr ')'
+ */
+
 export type Expr =
 	| { type: "Number"; value: number }
 	| { type: "BinOp"; left: Expr; right: Expr; operator: "+" | "-" | "*" | "/" };
