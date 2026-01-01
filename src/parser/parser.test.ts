@@ -9,6 +9,18 @@ describe("Parser", () => {
 			const expr = parse(tokens);
 			expect(expr).toEqual({ type: "Number", value: 1 });
 		});
+
+		test("trueをパースできる", () => {
+			const tokens: Token[] = [{ type: "TRUE" }, { type: "EOF" }];
+			const expr = parse(tokens);
+			expect(expr).toEqual({ type: "Bool", value: true });
+		});
+
+		test("falseをパースできる", () => {
+			const tokens: Token[] = [{ type: "FALSE" }, { type: "EOF" }];
+			const expr = parse(tokens);
+			expect(expr).toEqual({ type: "Bool", value: false });
+		});
 	});
 
 	describe("演算子", () => {
@@ -85,6 +97,134 @@ describe("Parser", () => {
 				type: "UnaryOp",
 				operator: "-",
 				expr: { type: "Number", value: 1 },
+			});
+		});
+
+		test("比較演算(<)をパースできる", () => {
+			// 1 < 2
+			const tokens: Token[] = [
+				{ type: "NUMBER", value: 1 },
+				{ type: "LT" },
+				{ type: "NUMBER", value: 2 },
+				{ type: "EOF" },
+			];
+			const expr = parse(tokens);
+			expect(expr).toEqual({
+				type: "BinOp",
+				operator: "<",
+				left: { type: "Number", value: 1 },
+				right: { type: "Number", value: 2 },
+			});
+		});
+
+		test("比較演算(>)をパースできる", () => {
+			const tokens: Token[] = [
+				{ type: "NUMBER", value: 1 },
+				{ type: "GT" },
+				{ type: "NUMBER", value: 2 },
+				{ type: "EOF" },
+			];
+			const expr = parse(tokens);
+			expect(expr).toEqual({
+				type: "BinOp",
+				operator: ">",
+				left: { type: "Number", value: 1 },
+				right: { type: "Number", value: 2 },
+			});
+		});
+
+		test("比較演算(<=)をパースできる", () => {
+			const tokens: Token[] = [
+				{ type: "NUMBER", value: 1 },
+				{ type: "LE" },
+				{ type: "NUMBER", value: 2 },
+				{ type: "EOF" },
+			];
+			const expr = parse(tokens);
+			expect(expr).toEqual({
+				type: "BinOp",
+				operator: "<=",
+				left: { type: "Number", value: 1 },
+				right: { type: "Number", value: 2 },
+			});
+		});
+
+		test("比較演算(>=)をパースできる", () => {
+			const tokens: Token[] = [
+				{ type: "NUMBER", value: 1 },
+				{ type: "GE" },
+				{ type: "NUMBER", value: 2 },
+				{ type: "EOF" },
+			];
+			const expr = parse(tokens);
+			expect(expr).toEqual({
+				type: "BinOp",
+				operator: ">=",
+				left: { type: "Number", value: 1 },
+				right: { type: "Number", value: 2 },
+			});
+		});
+
+		test("比較演算(=)をパースできる", () => {
+			const tokens: Token[] = [
+				{ type: "NUMBER", value: 1 },
+				{ type: "EQ" },
+				{ type: "NUMBER", value: 2 },
+				{ type: "EOF" },
+			];
+			const expr = parse(tokens);
+			expect(expr).toEqual({
+				type: "BinOp",
+				operator: "=",
+				left: { type: "Number", value: 1 },
+				right: { type: "Number", value: 2 },
+			});
+		});
+
+		test("比較演算(<>)をパースできる", () => {
+			const tokens: Token[] = [
+				{ type: "NUMBER", value: 1 },
+				{ type: "NEQ" },
+				{ type: "NUMBER", value: 2 },
+				{ type: "EOF" },
+			];
+			const expr = parse(tokens);
+			expect(expr).toEqual({
+				type: "BinOp",
+				operator: "<>",
+				left: { type: "Number", value: 1 },
+				right: { type: "Number", value: 2 },
+			});
+		});
+
+		test("1 + 2 < 3 + 4 で加算が比較より優先される", () => {
+			// 1 + 2 < 3 + 4 → (1 + 2) < (3 + 4)
+			const tokens: Token[] = [
+				{ type: "NUMBER", value: 1 },
+				{ type: "PLUS" },
+				{ type: "NUMBER", value: 2 },
+				{ type: "LT" },
+				{ type: "NUMBER", value: 3 },
+				{ type: "PLUS" },
+				{ type: "NUMBER", value: 4 },
+				{ type: "EOF" },
+			];
+			const expr = parse(tokens);
+			expect(expr).toEqual({
+				type: "BinOp",
+				operator: "<",
+				left: {
+					type: "BinOp",
+					operator: "+",
+					left: { type: "Number", value: 1 },
+					right: { type: "Number", value: 2 },
+				},
+				right: {
+					type: "BinOp",
+					operator: "+",
+					left: { type: "Number", value: 3 },
+					right: { type: "Number", value: 4 },
+				},
 			});
 		});
 	});
@@ -233,6 +373,85 @@ describe("Parser", () => {
 						operator: "+",
 					},
 				},
+			});
+		});
+	});
+
+	describe("if式", () => {
+		test("if式をパースできる", () => {
+			// if true then 1 else 0
+			const tokens: Token[] = [
+				{ type: "IF" },
+				{ type: "TRUE" },
+				{ type: "THEN" },
+				{ type: "NUMBER", value: 1 },
+				{ type: "ELSE" },
+				{ type: "NUMBER", value: 0 },
+				{ type: "EOF" },
+			];
+			const expr = parse(tokens);
+			expect(expr).toEqual({
+				type: "IF",
+				cond: { type: "Bool", value: true },
+				then_: { type: "Number", value: 1 },
+				else_: { type: "Number", value: 0 },
+			});
+		});
+
+		test("条件に比較演算を含むif式をパースできる", () => {
+			// if x < 10 then 1 else 0
+			const tokens: Token[] = [
+				{ type: "IF" },
+				{ type: "IDENT", value: "x" },
+				{ type: "LT" },
+				{ type: "NUMBER", value: 10 },
+				{ type: "THEN" },
+				{ type: "NUMBER", value: 1 },
+				{ type: "ELSE" },
+				{ type: "NUMBER", value: 0 },
+				{ type: "EOF" },
+			];
+			const expr = parse(tokens);
+			expect(expr).toEqual({
+				type: "IF",
+				cond: {
+					type: "BinOp",
+					operator: "<",
+					left: { type: "VAR", name: "x" },
+					right: { type: "Number", value: 10 },
+				},
+				then_: { type: "Number", value: 1 },
+				else_: { type: "Number", value: 0 },
+			});
+		});
+
+		test("ネストしたif式をパースできる", () => {
+			// if true then if false then 1 else 2 else 3
+			const tokens: Token[] = [
+				{ type: "IF" },
+				{ type: "TRUE" },
+				{ type: "THEN" },
+				{ type: "IF" },
+				{ type: "FALSE" },
+				{ type: "THEN" },
+				{ type: "NUMBER", value: 1 },
+				{ type: "ELSE" },
+				{ type: "NUMBER", value: 2 },
+				{ type: "ELSE" },
+				{ type: "NUMBER", value: 3 },
+				{ type: "EOF" },
+			];
+			const expr = parse(tokens);
+			expect(expr).toEqual({
+				type: "IF",
+				cond: { type: "Bool", value: true },
+				then_: {
+					type: "IF",
+					cond: { type: "Bool", value: false },
+					then_: { type: "Number", value: 1 },
+					else_: { type: "Number", value: 2 },
+				},
+				else_: { type: "Number", value: 3 },
 			});
 		});
 	});

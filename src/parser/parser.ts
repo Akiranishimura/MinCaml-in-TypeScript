@@ -1,19 +1,42 @@
 import type { Token } from "../lexer/lexer";
 
 /**
- * 四則演算の文法 (EBNF):
+ * 文法 (EBNF):
  *
- * Expr   ::= 'let' IDENT '=' Expr 'in' Expr | Term (('+' | '-') Term)*
- * Term   ::= Factor (('*' | '/') Factor)*
- * Factor ::= NUMBER | '(' Expr ')' | IDENT
+ * Expr    ::= 'let' IDENT '=' Expr 'in' Expr
+ *           | 'if' Expr 'then' Expr 'else' Expr
+ *           | Compare
+ * Compare ::= Additive (('<' | '>' | '<=' | '>=' | '=' | '<>') Additive)?
+ * Additive ::= Term (('+' | '-') Term)*
+ * Term    ::= Factor (('*' | '/') Factor)*
+ * Factor  ::= '-' Factor | Primary
+ * Primary ::= NUMBER | BOOL | '(' Expr ')' | IDENT
  */
 
 export type Expr =
 	| { type: "Number"; value: number }
+	| { type: "Bool"; value: boolean }
 	| { type: "UnaryOp"; operator: "-"; expr: Expr }
-	| { type: "BinOp"; left: Expr; right: Expr; operator: "+" | "-" | "*" | "/" }
+	| {
+			type: "BinOp";
+			left: Expr;
+			right: Expr;
+			operator: "+" | "-" | "*" | "/" | ">" | ">=" | "<" | "<=" | "<>" | "=";
+	  }
 	| { type: "VAR"; name: string }
-	| { type: "LET"; name: string; value: Expr; body: Expr };
+	| { type: "LET"; name: string; value: Expr; body: Expr }
+	| { type: "IF"; cond: Expr; then_: Expr; else_: Expr };
+
+type CompareOperator = "<" | ">" | "<=" | ">=" | "=" | "<>";
+
+const compareOperatorMap = new Map<Token["type"], CompareOperator>([
+	["LT", "<"],
+	["GT", ">"],
+	["LE", "<="],
+	["GE", ">="],
+	["EQ", "="],
+	["NEQ", "<>"],
+]);
 
 export const parse = (tokens: Token[]): Expr => {
 	if (tokens.length === 0) {
@@ -24,29 +47,47 @@ export const parse = (tokens: Token[]): Expr => {
 	const currentToken = () => tokens[position];
 	const advance = () => position++;
 
-	const parseFactor = (): Expr => {
+	// Primary ::= NUMBER | BOOL | '(' Expr ')' | IDENT
+	const parsePrimary = (): Expr => {
 		const token = currentToken();
-		if (token?.type === "MINUS") {
+		if (token?.type === "TRUE") {
 			advance();
-			return { type: "UnaryOp", operator: "-", expr: parseFactor() };
-		} else if (token?.type === "NUMBER") {
+			return { type: "Bool", value: true };
+		}
+		if (token?.type === "FALSE") {
+			advance();
+			return { type: "Bool", value: false };
+		}
+		if (token?.type === "NUMBER") {
 			advance();
 			return { type: "Number", value: token.value };
-		} else if (token?.type === "LPAREN") {
+		}
+		if (token?.type === "LPAREN") {
 			advance();
 			const expr = parseExpr();
 			if (currentToken()?.type !== "RPAREN") {
-				throw new Error("Unexpected token: " + currentToken()?.type);
+				throw new Error(`Unexpected token: ${currentToken()?.type}`);
 			}
 			advance();
 			return expr;
-		} else if (token?.type === "IDENT") {
+		}
+		if (token?.type === "IDENT") {
 			advance();
 			return { type: "VAR", name: token.value };
 		}
-		throw new Error("Unexpected token: " + token?.type);
+		throw new Error(`Unexpected token: ${token?.type}`);
 	};
 
+	// Factor ::= '-' Factor | Primary
+	const parseFactor = (): Expr => {
+		if (currentToken()?.type === "MINUS") {
+			advance();
+			return { type: "UnaryOp", operator: "-", expr: parseFactor() };
+		}
+		return parsePrimary();
+	};
+
+	// Term ::= Factor (('*' | '/') Factor)*
 	const parseTerm = (): Expr => {
 		let left = parseFactor();
 		while (
@@ -60,28 +101,10 @@ export const parse = (tokens: Token[]): Expr => {
 		}
 		return left;
 	};
-	const parseExpr = (): Expr => {
-		if (currentToken()?.type === "LET") {
-			advance();
-			const expectedNameToken = currentToken();
-			const name =
-				expectedNameToken?.type === "IDENT" ? expectedNameToken.value : "";
-			advance();
-			if (currentToken()?.type !== "EQ") {
-				throw new Error("Unexpected token: " + currentToken()?.type);
-			}
-			advance();
-			const value = parseExpr();
-			if (currentToken()?.type !== "IN") {
-				throw new Error("Unexpected token: " + currentToken()?.type);
-			}
-			advance();
-			const body = parseExpr();
-			return { type: "LET", name, value, body };
-		}
 
+	// Additive ::= Term (('+' | '-') Term)*
+	const parseAdditive = (): Expr => {
 		let left = parseTerm();
-
 		while (
 			currentToken()?.type === "PLUS" ||
 			currentToken()?.type === "MINUS"
@@ -92,6 +115,68 @@ export const parse = (tokens: Token[]): Expr => {
 			left = { type: "BinOp", left, right, operator: op };
 		}
 		return left;
+	};
+
+	// Compare ::= Additive (('<' | '>' | '<=' | '>=' | '=' | '<>') Additive)?
+	const parseCompare = (): Expr => {
+		let left = parseAdditive();
+		while (
+			currentToken()?.type === "LT" ||
+			currentToken()?.type === "GT" ||
+			currentToken()?.type === "LE" ||
+			currentToken()?.type === "GE" ||
+			currentToken()?.type === "EQ" ||
+			currentToken()?.type === "NEQ"
+		) {
+			const op = compareOperatorMap.get(currentToken()?.type as Token["type"]);
+			if (!op) {
+				throw new Error(`Unexpected token: ${currentToken()?.type}`);
+			}
+			advance();
+			const right = parseAdditive();
+			left = { type: "BinOp", left, right, operator: op };
+		}
+		return left;
+	};
+
+	// Expr ::= 'let' ... | 'if' ... | Compare
+	const parseExpr = (): Expr => {
+		if (currentToken()?.type === "LET") {
+			advance();
+			const expectedNameToken = currentToken();
+			const name =
+				expectedNameToken?.type === "IDENT" ? expectedNameToken.value : "";
+			advance();
+			if (currentToken()?.type !== "EQ") {
+				throw new Error(`Unexpected token: ${currentToken()?.type}`);
+			}
+			advance();
+			const value = parseExpr();
+			if (currentToken()?.type !== "IN") {
+				throw new Error(`Unexpected token: ${currentToken()?.type}`);
+			}
+			advance();
+			const body = parseExpr();
+			return { type: "LET", name, value, body };
+		}
+
+		if (currentToken()?.type === "IF") {
+			advance();
+			const cond = parseExpr();
+			if (currentToken()?.type !== "THEN") {
+				throw new Error(`Unexpected token: ${currentToken()?.type}`);
+			}
+			advance();
+			const then_ = parseExpr();
+			if (currentToken()?.type !== "ELSE") {
+				throw new Error(`Unexpected token: ${currentToken()?.type}`);
+			}
+			advance();
+			const else_ = parseExpr();
+			return { type: "IF", cond, then_, else_ };
+		}
+
+		return parseCompare();
 	};
 	return parseExpr();
 };
