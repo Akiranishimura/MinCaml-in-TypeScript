@@ -2,7 +2,7 @@ import type { Expr } from "../parser/parser";
 
 export const evaluate = (
 	ast: Expr,
-	env: Map<string, number> = new Map()
+	env: Map<string, number> = new Map(),
 ): number => {
 	if (ast.type === "Number") {
 		return ast.value;

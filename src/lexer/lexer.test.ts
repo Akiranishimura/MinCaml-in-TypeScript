@@ -2,76 +2,93 @@ import { describe, expect, test } from "bun:test";
 import { tokenize } from "./lexer";
 
 describe("Lexer", () => {
-	test("数字1つをトークン化できる", () => {
-		const tokens = tokenize("1");
-		expect(tokens).toEqual([{ type: "NUMBER", value: 1 }, { type: "EOF" }]);
-	});
-	test("複数桁の数字をトークン化できる", () => {
-		const tokens = tokenize("123");
-		expect(tokens).toEqual([{ type: "NUMBER", value: 123 }, { type: "EOF" }]);
-	});
-	test("四則演算をトークン化できる", () => {
-		const tokens = tokenize("1 + 2 * 3");
-		expect(tokens).toEqual([
-			{ type: "NUMBER", value: 1 },
-			{ type: "PLUS" },
-			{ type: "NUMBER", value: 2 },
-			{ type: "MULTIPLY" },
-			{ type: "NUMBER", value: 3 },
-			{ type: "EOF" },
-		]);
-	});
-	test("括弧をトークン化できる", () => {
-		const tokens = tokenize("(1 + 2) * 3");
-		expect(tokens).toEqual([
-			{ type: "LPAREN" },
-			{ type: "NUMBER", value: 1 },
-			{ type: "PLUS" },
-			{ type: "NUMBER", value: 2 },
-			{ type: "RPAREN" },
-			{ type: "MULTIPLY" },
-			{ type: "NUMBER", value: 3 },
-			{ type: "EOF" },
-		]);
+	describe("数値", () => {
+		test("数字1つをトークン化できる", () => {
+			const tokens = tokenize("1");
+			expect(tokens).toEqual([{ type: "NUMBER", value: 1 }, { type: "EOF" }]);
+		});
+
+		test("複数桁の数字をトークン化できる", () => {
+			const tokens = tokenize("123");
+			expect(tokens).toEqual([{ type: "NUMBER", value: 123 }, { type: "EOF" }]);
+		});
 	});
 
-	test("未知の文字でエラーを投げる", () => {
-		expect(() => tokenize("1 @ 2")).toThrow();
+	describe("演算子", () => {
+		test("四則演算をトークン化できる", () => {
+			const tokens = tokenize("1 + 2 * 3");
+			expect(tokens).toEqual([
+				{ type: "NUMBER", value: 1 },
+				{ type: "PLUS" },
+				{ type: "NUMBER", value: 2 },
+				{ type: "MULTIPLY" },
+				{ type: "NUMBER", value: 3 },
+				{ type: "EOF" },
+			]);
+		});
+
+		test("等号をトークン化できる", () => {
+			const tokens = tokenize("=");
+			expect(tokens).toEqual([{ type: "EQ" }, { type: "EOF" }]);
+		});
 	});
 
-	test("等号をトークン化できる", () => {
-		const tokens = tokenize("=");
-		expect(tokens).toEqual([{ type: "EQ" }, { type: "EOF" }]);
+	describe("括弧", () => {
+		test("括弧をトークン化できる", () => {
+			const tokens = tokenize("(1 + 2) * 3");
+			expect(tokens).toEqual([
+				{ type: "LPAREN" },
+				{ type: "NUMBER", value: 1 },
+				{ type: "PLUS" },
+				{ type: "NUMBER", value: 2 },
+				{ type: "RPAREN" },
+				{ type: "MULTIPLY" },
+				{ type: "NUMBER", value: 3 },
+				{ type: "EOF" },
+			]);
+		});
 	});
 
-	test("letをトークン化できる", () => {
-		const tokens = tokenize("let");
-		expect(tokens).toEqual([{ type: "LET" }, { type: "EOF" }]);
+	describe("キーワード", () => {
+		test("letをトークン化できる", () => {
+			const tokens = tokenize("let");
+			expect(tokens).toEqual([{ type: "LET" }, { type: "EOF" }]);
+		});
+
+		test("inをトークン化できる", () => {
+			const tokens = tokenize("in");
+			expect(tokens).toEqual([{ type: "IN" }, { type: "EOF" }]);
+		});
 	});
 
-	test("inをトークン化できる", () => {
-		const tokens = tokenize("in");
-		expect(tokens).toEqual([{ type: "IN" }, { type: "EOF" }]);
+	describe("識別子", () => {
+		test("変数をトークン化できる", () => {
+			const tokens = tokenize("x");
+			expect(tokens).toEqual([{ type: "IDENT", value: "x" }, { type: "EOF" }]);
+		});
+
+		test("数字を含む変数をトークン化できる", () => {
+			const tokens = tokenize("x1");
+			expect(tokens).toEqual([{ type: "IDENT", value: "x1" }, { type: "EOF" }]);
+		});
 	});
 
-	test("変数をトークン化できる", () => {
-		const tokens = tokenize("x");
-		expect(tokens).toEqual([{ type: "IDENT", value: "x" }, { type: "EOF" }]);
+	describe("式", () => {
+		test("変数宣言をトークン化できる", () => {
+			const tokens = tokenize("let x = 1");
+			expect(tokens).toEqual([
+				{ type: "LET" },
+				{ type: "IDENT", value: "x" },
+				{ type: "EQ" },
+				{ type: "NUMBER", value: 1 },
+				{ type: "EOF" },
+			]);
+		});
 	});
 
-	test("数字を含む変数をトークン化できる", () => {
-		const tokens = tokenize("x1");
-		expect(tokens).toEqual([{ type: "IDENT", value: "x1" }, { type: "EOF" }]);
-	});
-
-	test("変数宣言をトークン化できる", () => {
-		const tokens = tokenize("let x = 1");
-		expect(tokens).toEqual([
-			{ type: "LET" },
-			{ type: "IDENT", value: "x" },
-			{ type: "EQ" },
-			{ type: "NUMBER", value: 1 },
-			{ type: "EOF" },
-		]);
+	describe("エラー", () => {
+		test("未知の文字でエラーを投げる", () => {
+			expect(() => tokenize("1 @ 2")).toThrow();
+		});
 	});
 });
