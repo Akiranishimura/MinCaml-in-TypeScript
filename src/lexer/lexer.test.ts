@@ -31,6 +31,31 @@ describe("Lexer", () => {
 			const tokens = tokenize("=");
 			expect(tokens).toEqual([{ type: "EQ" }, { type: "EOF" }]);
 		});
+
+		test("<をトークン化できる", () => {
+			const tokens = tokenize("<");
+			expect(tokens).toEqual([{ type: "LT" }, { type: "EOF" }]);
+		});
+
+		test(">をトークン化できる", () => {
+			const tokens = tokenize(">");
+			expect(tokens).toEqual([{ type: "GT" }, { type: "EOF" }]);
+		});
+
+		test("<=をトークン化できる", () => {
+			const tokens = tokenize("<=");
+			expect(tokens).toEqual([{ type: "LE" }, { type: "EOF" }]);
+		});
+
+		test(">=をトークン化できる", () => {
+			const tokens = tokenize(">=");
+			expect(tokens).toEqual([{ type: "GE" }, { type: "EOF" }]);
+		});
+
+		test("<>をトークン化できる", () => {
+			const tokens = tokenize("<>");
+			expect(tokens).toEqual([{ type: "NEQ" }, { type: "EOF" }]);
+		});
 	});
 
 	describe("括弧", () => {
@@ -106,6 +131,19 @@ describe("Lexer", () => {
 				{ type: "IDENT", value: "x" },
 				{ type: "EQ" },
 				{ type: "NUMBER", value: 1 },
+				{ type: "EOF" },
+			]);
+		});
+
+		test("if式をトークン化できる", () => {
+			const tokens = tokenize("if true then 1 else 0");
+			expect(tokens).toEqual([
+				{ type: "IF" },
+				{ type: "TRUE" },
+				{ type: "THEN" },
+				{ type: "NUMBER", value: 1 },
+				{ type: "ELSE" },
+				{ type: "NUMBER", value: 0 },
 				{ type: "EOF" },
 			]);
 		});

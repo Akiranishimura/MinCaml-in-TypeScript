@@ -19,6 +19,11 @@ export type Token =
 	| { type: "LPAREN" }
 	| { type: "RPAREN" }
 	| { type: "EQ" }
+	| { type: "LT" }
+	| { type: "GT" }
+	| { type: "LE" }
+	| { type: "GE" }
+	| { type: "NEQ" }
 	//終端
 	| { type: "EOF" };
 
@@ -92,6 +97,34 @@ export const tokenize = (input: string): Token[] => {
 			position++;
 			continue;
 		}
+
+		if (char === "<") {
+			const next = input[position + 1];
+			if (next === "=") {
+				tokens.push({ type: "LE" });
+				position += 2;
+			} else if (next === ">") {
+				tokens.push({ type: "NEQ" });
+				position += 2;
+			} else {
+				tokens.push({ type: "LT" });
+				position++;
+			}
+			continue;
+		}
+
+		if (char === ">") {
+			const next = input[position + 1];
+			if (next === "=") {
+				tokens.push({ type: "GE" });
+				position += 2;
+			} else {
+				tokens.push({ type: "GT" });
+				position++;
+			}
+			continue;
+		}
+
 		if (isDigit(char)) {
 			let value = "";
 			while (position < input.length && isDigit(input[position])) {
