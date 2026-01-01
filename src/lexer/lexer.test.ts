@@ -59,6 +59,31 @@ describe("Lexer", () => {
 			const tokens = tokenize("in");
 			expect(tokens).toEqual([{ type: "IN" }, { type: "EOF" }]);
 		});
+
+		test("ifをトークン化できる", () => {
+			const tokens = tokenize("if");
+			expect(tokens).toEqual([{ type: "IF" }, { type: "EOF" }]);
+		});
+
+		test("thenをトークン化できる", () => {
+			const tokens = tokenize("then");
+			expect(tokens).toEqual([{ type: "THEN" }, { type: "EOF" }]);
+		});
+
+		test("elseをトークン化できる", () => {
+			const tokens = tokenize("else");
+			expect(tokens).toEqual([{ type: "ELSE" }, { type: "EOF" }]);
+		});
+
+		test("trueをトークン化できる", () => {
+			const tokens = tokenize("true");
+			expect(tokens).toEqual([{ type: "TRUE" }, { type: "EOF" }]);
+		});
+
+		test("falseをトークン化できる", () => {
+			const tokens = tokenize("false");
+			expect(tokens).toEqual([{ type: "FALSE" }, { type: "EOF" }]);
+		});
 	});
 
 	describe("識別子", () => {

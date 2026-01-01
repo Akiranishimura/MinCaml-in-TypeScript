@@ -1,16 +1,26 @@
 export type Token =
+	// リテラル
 	| { type: "NUMBER"; value: number }
+	| { type: "TRUE" }
+	| { type: "FALSE" }
+	//識別子
+	| { type: "IDENT"; value: string } //ex) x, foo
+	//キーワード
+	| { type: "LET" }
+	| { type: "IN" }
+	| { type: "IF" }
+	| { type: "THEN" }
+	| { type: "ELSE" }
+	//演算子
 	| { type: "PLUS" }
 	| { type: "MINUS" }
 	| { type: "MULTIPLY" }
 	| { type: "DIVIDE" }
 	| { type: "LPAREN" }
 	| { type: "RPAREN" }
-	| { type: "EOF" }
-	| { type: "LET" }
 	| { type: "EQ" }
-	| { type: "IN" }
-	| { type: "IDENT"; value: string }; //ex) x, foo
+	//終端
+	| { type: "EOF" };
 
 const isDigit = (char?: string): boolean => {
 	if (!char) return false;
@@ -21,6 +31,21 @@ const isAlphabet = (char?: string): boolean => {
 	if (!char) return false;
 	return char.match(/^[a-zA-Z]+$/) !== null;
 };
+
+const keywords = new Map<string, Token["type"]>([
+	["let", "LET"],
+	["in", "IN"],
+	["if", "IF"],
+	["then", "THEN"],
+	["else", "ELSE"],
+	["true", "TRUE"],
+	["false", "FALSE"],
+]);
+
+const toKeywordOrIdent = (value: string): Token =>
+	keywords.has(value)
+		? ({ type: keywords.get(value) } as Token)
+		: { type: "IDENT", value };
 
 export const tokenize = (input: string): Token[] => {
 	const tokens: Token[] = [];
@@ -86,13 +111,7 @@ export const tokenize = (input: string): Token[] => {
 				value += input[position];
 				position++;
 			}
-			if (value === "let") {
-				tokens.push({ type: "LET" });
-			} else if (value === "in") {
-				tokens.push({ type: "IN" });
-			} else {
-				tokens.push({ type: "IDENT", value });
-			}
+			tokens.push(toKeywordOrIdent(value));
 			continue;
 		}
 
