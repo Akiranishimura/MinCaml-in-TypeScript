@@ -1,15 +1,32 @@
 import type { Expr } from "../parser/parser";
 
-export const evaluate = (
-	ast: Expr,
-	env: Map<string, number> = new Map(),
-): number => {
+export type Value = number | boolean;
+type Env = Map<string, Value>;
+
+const evalNumber = (ast: Expr, env: Env): number => {
+	const v = evaluate(ast, env);
+	if (typeof v !== "number") {
+		throw new Error(`Expected number, got ${typeof v}`);
+	}
+	return v;
+};
+
+const evalBool = (ast: Expr, env: Env): boolean => {
+	const v = evaluate(ast, env);
+	if (typeof v !== "boolean") {
+		throw new Error("Expected boolean, got " + typeof v);
+	}
+	return v;
+};
+export const evaluate = (ast: Expr, env: Env = new Map()): Value => {
 	if (ast.type === "Number") {
 		return ast.value;
 	}
+	if (ast.type === "Bool") {
+		return ast.value;
+	}
 	if (ast.type === "UnaryOp") {
-		const operand = evaluate(ast.expr, env);
-		return -operand;
+		return -evalNumber(ast.expr, env);
 	}
 	if (ast.type === "VAR") {
 		const value = env.get(ast.name);
@@ -24,21 +41,37 @@ export const evaluate = (
 		newEnv.set(ast.name, value);
 		return evaluate(ast.body, newEnv);
 	}
+	if (ast.type === "IF") {
+		const cond = evalBool(ast.cond, env);
+		return evaluate(cond ? ast.then_ : ast.else_, env);
+	}
 	if (ast.type === "BinOp") {
-		const left = evaluate(ast.left, env);
-		const right = evaluate(ast.right, env);
 		switch (ast.operator) {
 			case "+":
-				return left + right;
+				return evalNumber(ast.left, env) + evalNumber(ast.right, env);
 			case "-":
-				return left - right;
+				return evalNumber(ast.left, env) - evalNumber(ast.right, env);
 			case "*":
-				return left * right;
-			case "/":
+				return evalNumber(ast.left, env) * evalNumber(ast.right, env);
+			case "/": {
+				const right = evalNumber(ast.right, env);
 				if (right === 0) {
 					throw new Error("Division by zero");
 				}
-				return left / right;
+				return evalNumber(ast.left, env) / right;
+			}
+			case "<":
+				return evalNumber(ast.left, env) < evalNumber(ast.right, env);
+			case ">":
+				return evalNumber(ast.left, env) > evalNumber(ast.right, env);
+			case "<=":
+				return evalNumber(ast.left, env) <= evalNumber(ast.right, env);
+			case ">=":
+				return evalNumber(ast.left, env) >= evalNumber(ast.right, env);
+			case "=":
+				return evalNumber(ast.left, env) === evalNumber(ast.right, env);
+			case "<>":
+				return evalNumber(ast.left, env) !== evalNumber(ast.right, env);
 			default:
 				throw new Error("Invalid operator");
 		}

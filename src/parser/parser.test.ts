@@ -455,4 +455,62 @@ describe("Parser", () => {
 			});
 		});
 	});
+
+	describe("エラー", () => {
+		test("空のトークン配列でエラー", () => {
+			expect(() => parse([])).toThrow("Unexpected end of input");
+		});
+
+		test("let式で=がないとエラー", () => {
+			// let x 1 in x (= がない)
+			const tokens: Token[] = [
+				{ type: "LET" },
+				{ type: "IDENT", value: "x" },
+				{ type: "NUMBER", value: 1 },
+				{ type: "IN" },
+				{ type: "IDENT", value: "x" },
+				{ type: "EOF" },
+			];
+			expect(() => parse(tokens)).toThrow();
+		});
+
+		test("let式でinがないとエラー", () => {
+			// let x = 1 x (in がない)
+			const tokens: Token[] = [
+				{ type: "LET" },
+				{ type: "IDENT", value: "x" },
+				{ type: "EQ" },
+				{ type: "NUMBER", value: 1 },
+				{ type: "IDENT", value: "x" },
+				{ type: "EOF" },
+			];
+			expect(() => parse(tokens)).toThrow();
+		});
+
+		test("if式でthenがないとエラー", () => {
+			// if true 1 else 2 (then がない)
+			const tokens: Token[] = [
+				{ type: "IF" },
+				{ type: "TRUE" },
+				{ type: "NUMBER", value: 1 },
+				{ type: "ELSE" },
+				{ type: "NUMBER", value: 2 },
+				{ type: "EOF" },
+			];
+			expect(() => parse(tokens)).toThrow();
+		});
+
+		test("if式でelseがないとエラー", () => {
+			// if true then 1 2 (else がない)
+			const tokens: Token[] = [
+				{ type: "IF" },
+				{ type: "TRUE" },
+				{ type: "THEN" },
+				{ type: "NUMBER", value: 1 },
+				{ type: "NUMBER", value: 2 },
+				{ type: "EOF" },
+			];
+			expect(() => parse(tokens)).toThrow();
+		});
+	});
 });

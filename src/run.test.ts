@@ -57,6 +57,54 @@ describe("run", () => {
 		});
 	});
 
+	describe("比較演算", () => {
+		test("小なり比較ができる", () => {
+			expect(run("1 < 2")).toBe(true);
+		});
+
+		test("大なり比較ができる", () => {
+			expect(run("2 > 1")).toBe(true);
+		});
+
+		test("以下比較ができる", () => {
+			expect(run("1 <= 1")).toBe(true);
+		});
+
+		test("以上比較ができる", () => {
+			expect(run("1 >= 1")).toBe(true);
+		});
+
+		test("等価比較ができる", () => {
+			expect(run("1 = 1")).toBe(true);
+		});
+
+		test("不等価比較ができる", () => {
+			expect(run("1 <> 2")).toBe(true);
+		});
+
+		test("式の結果を比較できる", () => {
+			expect(run("1 + 2 < 4")).toBe(true);
+		});
+	});
+
+	describe("条件分岐", () => {
+		test("thenブランチを評価できる", () => {
+			expect(run("if true then 1 else 2")).toBe(1);
+		});
+
+		test("elseブランチを評価できる", () => {
+			expect(run("if false then 1 else 2")).toBe(2);
+		});
+
+		test("比較演算を条件に使える", () => {
+			expect(run("if 1 < 2 then 10 else 20")).toBe(10);
+		});
+
+		test("let式と組み合わせられる", () => {
+			expect(run("let x = 5 in if x < 10 then x + 1 else x - 1")).toBe(6);
+		});
+	});
+
 	describe("異常系", () => {
 		test("空の入力でエラー", () => {
 			expect(() => run("")).toThrow();
