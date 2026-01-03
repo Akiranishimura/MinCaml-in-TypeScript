@@ -7,6 +7,7 @@ export type Token =
 	| { type: "IDENT"; value: string } //ex) x, foo
 	//キーワード
 	| { type: "LET" }
+	| { type: "REC" }
 	| { type: "IN" }
 	| { type: "IF" }
 	| { type: "THEN" }
@@ -45,6 +46,7 @@ const keywords = new Map<string, Token["type"]>([
 	["else", "ELSE"],
 	["true", "TRUE"],
 	["false", "FALSE"],
+	["rec", "REC"],
 ]);
 
 const toKeywordOrIdent = (value: string): Token =>

@@ -109,6 +109,19 @@ describe("Lexer", () => {
 			const tokens = tokenize("false");
 			expect(tokens).toEqual([{ type: "FALSE" }, { type: "EOF" }]);
 		});
+
+		test("recをトークン化できる", () => {
+			const tokens = tokenize("rec");
+			expect(tokens).toEqual([{ type: "REC" }, { type: "EOF" }]);
+		});
+
+		test("recを含む識別子はキーワードではない", () => {
+			const tokens = tokenize("record");
+			expect(tokens).toEqual([
+				{ type: "IDENT", value: "record" },
+				{ type: "EOF" },
+			]);
+		});
 	});
 
 	describe("識別子", () => {
@@ -144,6 +157,44 @@ describe("Lexer", () => {
 				{ type: "NUMBER", value: 1 },
 				{ type: "ELSE" },
 				{ type: "NUMBER", value: 0 },
+				{ type: "EOF" },
+			]);
+		});
+
+		test("関数定義をトークン化できる", () => {
+			const tokens = tokenize("let rec f x = x + 1 in f 5");
+			expect(tokens).toEqual([
+				{ type: "LET" },
+				{ type: "REC" },
+				{ type: "IDENT", value: "f" },
+				{ type: "IDENT", value: "x" },
+				{ type: "EQ" },
+				{ type: "IDENT", value: "x" },
+				{ type: "PLUS" },
+				{ type: "NUMBER", value: 1 },
+				{ type: "IN" },
+				{ type: "IDENT", value: "f" },
+				{ type: "NUMBER", value: 5 },
+				{ type: "EOF" },
+			]);
+		});
+
+		test("複数引数の関数定義をトークン化できる", () => {
+			const tokens = tokenize("let rec add x y = x + y in add 1 2");
+			expect(tokens).toEqual([
+				{ type: "LET" },
+				{ type: "REC" },
+				{ type: "IDENT", value: "add" },
+				{ type: "IDENT", value: "x" },
+				{ type: "IDENT", value: "y" },
+				{ type: "EQ" },
+				{ type: "IDENT", value: "x" },
+				{ type: "PLUS" },
+				{ type: "IDENT", value: "y" },
+				{ type: "IN" },
+				{ type: "IDENT", value: "add" },
+				{ type: "NUMBER", value: 1 },
+				{ type: "NUMBER", value: 2 },
 				{ type: "EOF" },
 			]);
 		});
