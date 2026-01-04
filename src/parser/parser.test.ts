@@ -513,4 +513,111 @@ describe("Parser", () => {
 			expect(() => parse(tokens)).toThrow();
 		});
 	});
+
+	describe("関数適用", () => {
+		test("関数適用をパースできる", () => {
+			// f 1
+			const tokens: Token[] = [
+				{ type: "IDENT", value: "f" },
+				{ type: "NUMBER", value: 1 },
+				{ type: "EOF" },
+			];
+			const expr = parse(tokens);
+			expect(expr).toEqual({
+				type: "App",
+				func: { type: "VAR", name: "f" },
+				args: [{ type: "Number", value: 1 }],
+			});
+		});
+	});
+
+	describe("関数定義", () => {
+		test("最小の関数定義をパースできる", () => {
+			// let rec f x = x in 1
+			const tokens: Token[] = [
+				{ type: "LET" },
+				{ type: "REC" },
+				{ type: "IDENT", value: "f" },
+				{ type: "IDENT", value: "x" },
+				{ type: "EQ" },
+				{ type: "IDENT", value: "x" },
+				{ type: "IN" },
+				{ type: "NUMBER", value: 1 },
+				{ type: "EOF" },
+			];
+			const expr = parse(tokens);
+			expect(expr).toEqual({
+				type: "LetRec",
+				func: {
+					name: "f",
+					args: ["x"],
+					body: { type: "VAR", name: "x" },
+				},
+				body: { type: "Number", value: 1 },
+			});
+		});
+
+		test("複数引数の関数定義をパースできる", () => {
+			// let rec add x y = x + y in 1
+			const tokens: Token[] = [
+				{ type: "LET" },
+				{ type: "REC" },
+				{ type: "IDENT", value: "add" },
+				{ type: "IDENT", value: "x" },
+				{ type: "IDENT", value: "y" },
+				{ type: "EQ" },
+				{ type: "IDENT", value: "x" },
+				{ type: "PLUS" },
+				{ type: "IDENT", value: "y" },
+				{ type: "IN" },
+				{ type: "NUMBER", value: 1 },
+				{ type: "EOF" },
+			];
+			const expr = parse(tokens);
+			expect(expr).toEqual({
+				type: "LetRec",
+				func: {
+					name: "add",
+					args: ["x", "y"],
+					body: {
+						type: "BinOp",
+						operator: "+",
+						left: { type: "VAR", name: "x" },
+						right: { type: "VAR", name: "y" },
+					},
+				},
+				body: { type: "Number", value: 1 },
+			});
+		});
+
+		test("関数定義と関数適用を組み合わせられる", () => {
+			// let rec f x = x in f 1
+			const tokens: Token[] = [
+				{ type: "LET" },
+				{ type: "REC" },
+				{ type: "IDENT", value: "f" },
+				{ type: "IDENT", value: "x" },
+				{ type: "EQ" },
+				{ type: "IDENT", value: "x" },
+				{ type: "IN" },
+				{ type: "IDENT", value: "f" },
+				{ type: "NUMBER", value: 1 },
+				{ type: "EOF" },
+			];
+			const expr = parse(tokens);
+			expect(expr).toEqual({
+				type: "LetRec",
+				func: {
+					name: "f",
+					args: ["x"],
+					body: { type: "VAR", name: "x" },
+				},
+				body: {
+					type: "App",
+					func: { type: "VAR", name: "f" },
+					args: [{ type: "Number", value: 1 }],
+				},
+			});
+		});
+	});
 });

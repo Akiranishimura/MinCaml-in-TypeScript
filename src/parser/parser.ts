@@ -8,11 +8,13 @@ import type { Token } from "../lexer/lexer";
  *           | Compare
  * Compare ::= Additive (('<' | '>' | '<=' | '>=' | '=' | '<>') Additive)?
  * Additive ::= Term (('+' | '-') Term)*
- * Term    ::= Factor (('*' | '/') Factor)*
+ * Term    ::= App (('*' | '/') App)*
+ * App     ::= Factor Factor*
  * Factor  ::= '-' Factor | Primary
  * Primary ::= NUMBER | BOOL | '(' Expr ')' | IDENT
  */
 
+export type FuncDef = { name: string; args: string[]; body: Expr };
 export type Expr =
 	| { type: "Number"; value: number }
 	| { type: "Bool"; value: boolean }
@@ -25,7 +27,13 @@ export type Expr =
 	  }
 	| { type: "VAR"; name: string }
 	| { type: "LET"; name: string; value: Expr; body: Expr }
-	| { type: "IF"; cond: Expr; then_: Expr; else_: Expr };
+	| { type: "IF"; cond: Expr; then_: Expr; else_: Expr }
+	| { type: "App"; func: Expr; args: Expr[] }
+	| {
+			type: "LetRec";
+			func: FuncDef;
+			body: Expr;
+	  };
 
 type CompareOperator = "<" | ">" | "<=" | ">=" | "=" | "<>";
 
@@ -87,9 +95,29 @@ export const parse = (tokens: Token[]): Expr => {
 		return parsePrimary();
 	};
 
-	// Term ::= Factor (('*' | '/') Factor)*
+	// App ::= Factor Factor*
+	const parseApp = (): Expr => {
+		const func = parseFactor();
+		const args: Expr[] = [];
+		const isArgStart = (t?: Token["type"]) =>
+			t === "LPAREN" ||
+			t === "IDENT" ||
+			t === "NUMBER" ||
+			t === "TRUE" ||
+			t === "FALSE";
+		while (isArgStart(currentToken()?.type)) {
+			const arg = parseFactor();
+			args.push(arg);
+		}
+		if (args.length > 0) {
+			return { type: "App", func, args };
+		}
+		return func;
+	};
+
+	// Term ::= App (('*' | '/') App)*
 	const parseTerm = (): Expr => {
-		let left = parseFactor();
+		let left = parseApp();
 		while (
 			currentToken()?.type === "MULTIPLY" ||
 			currentToken()?.type === "DIVIDE"
@@ -143,9 +171,42 @@ export const parse = (tokens: Token[]): Expr => {
 	const parseExpr = (): Expr => {
 		if (currentToken()?.type === "LET") {
 			advance();
-			const expectedNameToken = currentToken();
+			const expectedNameOrRecToken = currentToken();
+			if (expectedNameOrRecToken?.type === "REC") {
+				const args: string[] = [];
+				advance();
+				const expectedNameToken = currentToken();
+				if (expectedNameToken?.type !== "IDENT") {
+					throw new Error(`Unexpected token: ${expectedNameToken?.type}`);
+				}
+				advance();
+				while (currentToken()?.type === "IDENT") {
+					const token = currentToken();
+					if (token?.type === "IDENT") {
+						args.push(token.value);
+					}
+					advance();
+				}
+				if (currentToken()?.type !== "EQ") {
+					throw new Error(`Unexpected token: ${currentToken()?.type}`);
+				}
+				advance();
+				const func: FuncDef = {
+					name: expectedNameToken.value,
+					args: args,
+					body: parseExpr(),
+				};
+				if (currentToken()?.type !== "IN") {
+					throw new Error(`Unexpected token: ${currentToken()?.type}`);
+				}
+				advance();
+				const body = parseExpr();
+				return { type: "LetRec", func, body };
+			}
 			const name =
-				expectedNameToken?.type === "IDENT" ? expectedNameToken.value : "";
+				expectedNameOrRecToken?.type === "IDENT"
+					? expectedNameOrRecToken.value
+					: "";
 			advance();
 			if (currentToken()?.type !== "EQ") {
 				throw new Error(`Unexpected token: ${currentToken()?.type}`);
