@@ -124,7 +124,7 @@ export const parse = (tokens: Token[]): Expr => {
 		) {
 			const op = currentToken()?.type === "MULTIPLY" ? "*" : "/";
 			advance();
-			const right = parseFactor();
+			const right = parseApp();
 			left = { type: "BinOp", left, right, operator: op };
 		}
 		return left;

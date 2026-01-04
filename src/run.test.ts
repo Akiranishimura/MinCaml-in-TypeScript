@@ -105,6 +105,50 @@ describe("run", () => {
 		});
 	});
 
+	describe("関数定義と呼び出し", () => {
+		test("恒等関数を定義して呼び出せる", () => {
+			expect(run("let rec f x = x in f 1")).toBe(1);
+		});
+
+		test("引数を使った計算ができる", () => {
+			expect(run("let rec double x = x * 2 in double 5")).toBe(10);
+		});
+
+		test("複数引数の関数を定義して呼び出せる", () => {
+			expect(run("let rec add x y = x + y in add 3 5")).toBe(8);
+		});
+
+		test("再帰関数（階乗）を定義して呼び出せる", () => {
+			expect(
+				run("let rec fact n = if n < 1 then 1 else n * fact (n - 1) in fact 5"),
+			).toBe(120);
+		});
+
+		test("再帰関数（フィボナッチ）を定義して呼び出せる", () => {
+			expect(
+				run(
+					"let rec fib n = if n < 2 then n else fib (n - 1) + fib (n - 2) in fib 10",
+				),
+			).toBe(55);
+		});
+
+		test("高階関数（関数を返す関数）を定義して呼び出せる", () => {
+			expect(
+				run(
+					"let rec makeAdder x = let rec f y = x + y in f in (makeAdder 3) 5",
+				),
+			).toBe(8);
+		});
+
+		test("関数を引数に取る関数を定義して呼び出せる", () => {
+			expect(
+				run(
+					"let rec apply f x = f x in let rec double n = n * 2 in apply double 5",
+				),
+			).toBe(10);
+		});
+	});
+
 	describe("異常系", () => {
 		test("空の入力でエラー", () => {
 			expect(() => run("")).toThrow();

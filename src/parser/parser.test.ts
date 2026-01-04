@@ -529,6 +529,87 @@ describe("Parser", () => {
 				args: [{ type: "Number", value: 1 }],
 			});
 		});
+
+		test("括弧付き引数の関数適用をパースできる", () => {
+			// f (n - 1)
+			const tokens: Token[] = [
+				{ type: "IDENT", value: "f" },
+				{ type: "LPAREN" },
+				{ type: "IDENT", value: "n" },
+				{ type: "MINUS" },
+				{ type: "NUMBER", value: 1 },
+				{ type: "RPAREN" },
+				{ type: "EOF" },
+			];
+			const expr = parse(tokens);
+			expect(expr).toEqual({
+				type: "App",
+				func: { type: "VAR", name: "f" },
+				args: [
+					{
+						type: "BinOp",
+						operator: "-",
+						left: { type: "VAR", name: "n" },
+						right: { type: "Number", value: 1 },
+					},
+				],
+			});
+		});
+
+		test("乗算の右辺に関数適用をパースできる", () => {
+			// n * f (n - 1)  => n * (f (n - 1))
+			const tokens: Token[] = [
+				{ type: "IDENT", value: "n" },
+				{ type: "MULTIPLY" },
+				{ type: "IDENT", value: "f" },
+				{ type: "LPAREN" },
+				{ type: "IDENT", value: "n" },
+				{ type: "MINUS" },
+				{ type: "NUMBER", value: 1 },
+				{ type: "RPAREN" },
+				{ type: "EOF" },
+			];
+			const expr = parse(tokens);
+			expect(expr).toEqual({
+				type: "BinOp",
+				operator: "*",
+				left: { type: "VAR", name: "n" },
+				right: {
+					type: "App",
+					func: { type: "VAR", name: "f" },
+					args: [
+						{
+							type: "BinOp",
+							operator: "-",
+							left: { type: "VAR", name: "n" },
+							right: { type: "Number", value: 1 },
+						},
+					],
+				},
+			});
+		});
+
+		test("加算の右辺に関数適用をパースできる", () => {
+			// a + f b => a + (f b)
+			const tokens: Token[] = [
+				{ type: "IDENT", value: "a" },
+				{ type: "PLUS" },
+				{ type: "IDENT", value: "f" },
+				{ type: "IDENT", value: "b" },
+				{ type: "EOF" },
+			];
+			const expr = parse(tokens);
+			expect(expr).toEqual({
+				type: "BinOp",
+				operator: "+",
+				left: { type: "VAR", name: "a" },
+				right: {
+					type: "App",
+					func: { type: "VAR", name: "f" },
+					args: [{ type: "VAR", name: "b" }],
+				},
+			});
+		});
 	});
 
 	describe("関数定義", () => {
