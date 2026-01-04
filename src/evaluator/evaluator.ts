@@ -1,7 +1,14 @@
 import type { Expr } from "../parser/parser";
 
-export type Value = number | boolean;
+export type Value = number | boolean | Closure;
 type Env = Map<string, Value>;
+type Closure = { type: "Closure"; args: string[]; body: Expr; env: Env };
+
+const isClosure = (value: Value): value is Closure => {
+	return (
+		typeof value === "object" && value !== null && value.type === "Closure"
+	);
+};
 
 const evalNumber = (ast: Expr, env: Env): number => {
 	const v = evaluate(ast, env);
@@ -41,6 +48,39 @@ export const evaluate = (ast: Expr, env: Env = new Map()): Value => {
 		newEnv.set(ast.name, value);
 		return evaluate(ast.body, newEnv);
 	}
+	if (ast.type === "LetRec") {
+		const newEnv = new Map(env);
+		const closure: Closure = {
+			type: "Closure",
+			args: ast.func.args,
+			body: ast.func.body,
+			env: newEnv,
+		};
+		newEnv.set(ast.func.name, closure);
+		return evaluate(ast.body, newEnv);
+	}
+
+	if (ast.type === "App") {
+		const func = evaluate(ast.func, env);
+		if (!isClosure(func)) {
+			throw new Error(
+				"Expected closure, got " + (func === null ? "null" : typeof func)
+			);
+		}
+		const argValues = ast.args.map((arg) => evaluate(arg, env));
+		const newEnv = new Map(func.env);
+		func.args.forEach((argName, i) => {
+			if (argValues[i] === undefined) {
+				throw new Error(
+					"Expected argument, got undefined for argument " + argName
+				);
+			}
+			newEnv.set(argName, argValues[i]);
+		});
+
+		return evaluate(func.body, newEnv);
+	}
+
 	if (ast.type === "IF") {
 		const cond = evalBool(ast.cond, env);
 		return evaluate(cond ? ast.then_ : ast.else_, env);

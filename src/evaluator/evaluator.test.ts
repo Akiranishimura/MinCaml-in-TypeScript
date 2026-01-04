@@ -416,6 +416,201 @@ describe("Evaluator", () => {
 		});
 	});
 
+	describe("関数定義と呼び出し", () => {
+		test("恒等関数を定義して呼び出せる", () => {
+			// let rec f x = x in f 1 => 1
+			const ast: Expr = {
+				type: "LetRec",
+				func: {
+					name: "f",
+					args: ["x"],
+					body: { type: "VAR", name: "x" },
+				},
+				body: {
+					type: "App",
+					func: { type: "VAR", name: "f" },
+					args: [{ type: "Number", value: 1 }],
+				},
+			};
+			expect(evaluate(ast)).toBe(1);
+		});
+
+		test("再帰関数（階乗）を定義して呼び出せる", () => {
+			// let rec fact n = if n < 1 then 1 else n * fact (n - 1) in fact 5 => 120
+			const ast: Expr = {
+				type: "LetRec",
+				func: {
+					name: "fact",
+					args: ["n"],
+					body: {
+						type: "IF",
+						cond: {
+							type: "BinOp",
+							operator: "<",
+							left: { type: "VAR", name: "n" },
+							right: { type: "Number", value: 1 },
+						},
+						then_: { type: "Number", value: 1 },
+						else_: {
+							type: "BinOp",
+							operator: "*",
+							left: { type: "VAR", name: "n" },
+							right: {
+								type: "App",
+								func: { type: "VAR", name: "fact" },
+								args: [
+									{
+										type: "BinOp",
+										operator: "-",
+										left: { type: "VAR", name: "n" },
+										right: { type: "Number", value: 1 },
+									},
+								],
+							},
+						},
+					},
+				},
+				body: {
+					type: "App",
+					func: { type: "VAR", name: "fact" },
+					args: [{ type: "Number", value: 5 }],
+				},
+			};
+			expect(evaluate(ast)).toBe(120);
+		});
+
+		test("静的スコープ: 関数定義時に存在しない変数は参照できない", () => {
+			// let rec f x = x + y in let y = 10 in f 5
+			// f 定義時に y は存在しないのでエラーになるべき
+			const ast: Expr = {
+				type: "LetRec",
+				func: {
+					name: "f",
+					args: ["x"],
+					body: {
+						type: "BinOp",
+						operator: "+",
+						left: { type: "VAR", name: "x" },
+						right: { type: "VAR", name: "y" },
+					},
+				},
+				body: {
+					type: "LET",
+					name: "y",
+					value: { type: "Number", value: 10 },
+					body: {
+						type: "App",
+						func: { type: "VAR", name: "f" },
+						args: [{ type: "Number", value: 5 }],
+					},
+				},
+			};
+			expect(() => evaluate(ast)).toThrow("Variable not found: y");
+		});
+
+		test("複数引数の関数を定義して呼び出せる", () => {
+			// let rec add x y = x + y in add 3 5 => 8
+			const ast: Expr = {
+				type: "LetRec",
+				func: {
+					name: "add",
+					args: ["x", "y"],
+					body: {
+						type: "BinOp",
+						operator: "+",
+						left: { type: "VAR", name: "x" },
+						right: { type: "VAR", name: "y" },
+					},
+				},
+				body: {
+					type: "App",
+					func: { type: "VAR", name: "add" },
+					args: [
+						{ type: "Number", value: 3 },
+						{ type: "Number", value: 5 },
+					],
+				},
+			};
+			expect(evaluate(ast)).toBe(8);
+		});
+
+		test("高階関数（関数を返す関数）を定義して呼び出せる", () => {
+			// let rec makeAdder x = let rec f y = x + y in f in (makeAdder 3) 5 => 8
+			// クロージャが自由変数 x をキャプチャする
+			const ast: Expr = {
+				type: "LetRec",
+				func: {
+					name: "makeAdder",
+					args: ["x"],
+					body: {
+						type: "LetRec",
+						func: {
+							name: "f",
+							args: ["y"],
+							body: {
+								type: "BinOp",
+								operator: "+",
+								left: { type: "VAR", name: "x" },
+								right: { type: "VAR", name: "y" },
+							},
+						},
+						body: { type: "VAR", name: "f" },
+					},
+				},
+				body: {
+					type: "App",
+					func: {
+						type: "App",
+						func: { type: "VAR", name: "makeAdder" },
+						args: [{ type: "Number", value: 3 }],
+					},
+					args: [{ type: "Number", value: 5 }],
+				},
+			};
+			expect(evaluate(ast)).toBe(8);
+		});
+
+		test("関数を引数に取る関数を定義して呼び出せる", () => {
+			// let rec apply f x = f x in
+			// let rec double n = n * 2 in
+			// apply double 5 => 10
+			const ast: Expr = {
+				type: "LetRec",
+				func: {
+					name: "apply",
+					args: ["f", "x"],
+					body: {
+						type: "App",
+						func: { type: "VAR", name: "f" },
+						args: [{ type: "VAR", name: "x" }],
+					},
+				},
+				body: {
+					type: "LetRec",
+					func: {
+						name: "double",
+						args: ["n"],
+						body: {
+							type: "BinOp",
+							operator: "*",
+							left: { type: "VAR", name: "n" },
+							right: { type: "Number", value: 2 },
+						},
+					},
+					body: {
+						type: "App",
+						func: { type: "VAR", name: "apply" },
+						args: [
+							{ type: "VAR", name: "double" },
+							{ type: "Number", value: 5 },
+						],
+					},
+				},
+			};
+			expect(evaluate(ast)).toBe(10);
+		});
+	});
+
 	describe("エラー", () => {
 		test("ゼロ除算でエラーを投げる", () => {
 			const ast: Expr = {
