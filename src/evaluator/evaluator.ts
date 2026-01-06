@@ -64,7 +64,7 @@ export const evaluate = (ast: Expr, env: Env = new Map()): Value => {
 		const func = evaluate(ast.func, env);
 		if (!isClosure(func)) {
 			throw new Error(
-				"Expected closure, got " + (func === null ? "null" : typeof func)
+				"Expected closure, got " + (func === null ? "null" : typeof func),
 			);
 		}
 		const argValues = ast.args.map((arg) => evaluate(arg, env));
@@ -72,7 +72,7 @@ export const evaluate = (ast: Expr, env: Env = new Map()): Value => {
 		func.args.forEach((argName, i) => {
 			if (argValues[i] === undefined) {
 				throw new Error(
-					"Expected argument, got undefined for argument " + argName
+					"Expected argument, got undefined for argument " + argName,
 				);
 			}
 			newEnv.set(argName, argValues[i]);
