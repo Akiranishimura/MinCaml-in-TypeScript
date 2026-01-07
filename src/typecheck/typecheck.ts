@@ -6,13 +6,48 @@ export type Type =
 	| { type: "TVar"; id: number; resolved: { value?: Type } }
 	| { type: "TFun"; args: Type[]; ret: Type };
 
-let nextVarId = 0;
+type TypeContext = {
+	typeEnv: Map<string, Type>;
+	newVar: () => Type;
+};
 
-const newVar = (): Type => {
-	return { type: "TVar", id: nextVarId++, resolved: { value: undefined } };
+const createContext = (): TypeContext => {
+	let nextVarId = 0;
+	return {
+		typeEnv: new Map(),
+		newVar: () => ({ type: "TVar", id: nextVarId++, resolved: {} }),
+	};
+};
+
+const occursIn = (tvar: Type & { type: "TVar" }, t: Type): boolean => {
+	if (t.type === "TVar") {
+		if (t.id === tvar.id) {
+			return true;
+		}
+		if (t.resolved.value !== undefined) {
+			return occursIn(tvar, t.resolved.value!);
+		}
+		return false;
+	}
+	if (t.type === "TFun") {
+		return t.args.some((arg) => occursIn(tvar, arg)) || occursIn(tvar, t.ret);
+	}
+	return false;
 };
 
 export const unify = (t1: Type, t2: Type): void => {
+	if (t1.type === "TFun" && t2.type === "TFun") {
+		if (t1.args.length !== t2.args.length) {
+			throw new Error(
+				"Function type mismatch: " + t1.args.length + " and " + t2.args.length,
+			);
+		}
+		t1.args.forEach((arg, i) => {
+			unify(arg, t2.args[i]!);
+		});
+		unify(t1.ret, t2.ret);
+		return;
+	}
 	if (t1.type !== "TVar" && t2.type !== "TVar") {
 		if (t1.type !== t2.type) {
 			throw new Error("Type mismatch: " + t1.type + " and " + t2.type);
@@ -21,8 +56,26 @@ export const unify = (t1: Type, t2: Type): void => {
 	}
 	if (t1.type === "TVar") {
 		if (t1.resolved.value === undefined) {
+			if (occursIn(t1, t2)) {
+				throw new Error("Infinite type: " + t1.id);
+			}
 			t1.resolved.value = t2;
+			return;
+		} else {
+			unify(t1.resolved.value, t2);
+			return;
 		}
+	}
+	if (t2.type === "TVar") {
+		if (t2.resolved.value === undefined) {
+			if (occursIn(t2, t1)) {
+				throw new Error("Infinite type: " + t2.id);
+			}
+			t2.resolved.value = t1;
+		} else {
+			unify(t2.resolved.value, t1);
+		}
+		return;
 	}
 };
 
@@ -33,13 +86,25 @@ const resolve = (t: Type): Type => {
 		}
 		return resolve(t.resolved.value);
 	}
+	if (t.type === "TFun") {
+		return {
+			type: "TFun",
+			args: t.args.map(resolve),
+			ret: resolve(t.ret),
+		};
+	}
 	return t;
 };
 
-export const infer = (
-	ast: Expr,
-	typeEnv: Map<string, Type> = new Map(),
-): Type => {
+export const infer = (ast: Expr): Type => {
+	const ctx = createContext();
+	const result = inferInternal(ast, ctx);
+	return resolve(result);
+};
+
+const inferInternal = (ast: Expr, ctx: TypeContext): Type => {
+	const { typeEnv, newVar } = ctx;
+
 	if (ast.type === "Number") {
 		return { type: "TInt" };
 	}
@@ -47,8 +112,8 @@ export const infer = (
 		return { type: "TBool" };
 	}
 	if (ast.type === "BinOp") {
-		const left = infer(ast.left, typeEnv);
-		const right = infer(ast.right, typeEnv);
+		const left = inferInternal(ast.left, ctx);
+		const right = inferInternal(ast.right, ctx);
 		const arithmeticTypes = ["+", "-", "*", "/"];
 		const comparisonTypes = ["<", ">", "<=", ">=", "=", "<>"];
 		if (arithmeticTypes.includes(ast.operator)) {
@@ -57,11 +122,8 @@ export const infer = (
 			return { type: "TInt" };
 		}
 		if (comparisonTypes.includes(ast.operator)) {
-			if (left.type !== "TInt" || right.type !== "TInt") {
-				throw new Error(
-					"Expected TInt, got " + left.type + " or " + right.type,
-				);
-			}
+			unify(left, { type: "TInt" });
+			unify(right, { type: "TInt" });
 			return { type: "TBool" };
 		}
 		throw new Error("Unexpected operator: " + ast.operator);
@@ -74,32 +136,25 @@ export const infer = (
 		return varType;
 	}
 	if (ast.type === "LET") {
-		const value = infer(ast.value, typeEnv);
+		const value = inferInternal(ast.value, ctx);
 		const newEnv = new Map(typeEnv);
 		newEnv.set(ast.name, value);
-		return infer(ast.body, newEnv);
+		return inferInternal(ast.body, { ...ctx, typeEnv: newEnv });
 	}
 	if (ast.type === "IF") {
-		const cond = infer(ast.cond, typeEnv);
-		if (cond.type !== "TBool") {
-			throw new Error("Expected TBool, got " + cond.type);
-		}
-		const then_ = infer(ast.then_, typeEnv);
-		const else_ = infer(ast.else_, typeEnv);
-		if (then_.type !== else_.type) {
-			throw new Error(
-				"Expected same type, got " + then_.type + " and " + else_.type,
-			);
-		}
+		const cond = inferInternal(ast.cond, ctx);
+		unify(cond, { type: "TBool" });
+		const then_ = inferInternal(ast.then_, ctx);
+		const else_ = inferInternal(ast.else_, ctx);
+		unify(then_, else_);
 		return then_;
 	}
 	if (ast.type === "UnaryOp") {
-		const expr = infer(ast.expr, typeEnv);
-		if (expr.type !== "TInt") {
-			throw new Error("Expected TInt, got " + expr.type);
-		}
-		return { type: "TInt" };
+		const expr = inferInternal(ast.expr, ctx);
+		unify(expr, { type: "TInt" });
+		return expr;
 	}
+
 	if (ast.type === "LetRec") {
 		const argTypes = ast.func.args.map(newVar);
 		const retType = newVar();
@@ -109,20 +164,22 @@ export const infer = (
 		ast.func.args.forEach((arg, i) => {
 			newEnv.set(arg, argTypes[i]!);
 		});
-		const bodyType = infer(ast.func.body, newEnv);
+		const newCtx = { ...ctx, typeEnv: newEnv };
+		const bodyType = inferInternal(ast.func.body, newCtx);
 		unify(retType, bodyType);
-		return infer(ast.body, newEnv);
+		return inferInternal(ast.body, newCtx);
 	}
 	if (ast.type === "App") {
-		const func = infer(ast.func, typeEnv);
-		if (func.type !== "TFun") {
-			throw new Error("Expected TFun, got " + func.type);
-		}
-		const args = ast.args.map((arg) => infer(arg, typeEnv));
-		func.args.forEach((arg, i) => {
-			unify(args[i]!, arg);
-		});
-		return resolve(func.ret);
+		const func = inferInternal(ast.func, ctx);
+		const argTypes = ast.args.map((arg) => inferInternal(arg, ctx));
+		const retType = newVar();
+		const expectedFuncType: Type = {
+			type: "TFun",
+			args: argTypes,
+			ret: retType,
+		};
+		unify(func, expectedFuncType);
+		return retType;
 	}
 	throw new Error("Unexpected AST type");
 };

@@ -120,31 +120,29 @@ describe("run", () => {
 
 		test("再帰関数（階乗）を定義して呼び出せる", () => {
 			expect(
-				run("let rec fact n = if n < 1 then 1 else n * fact (n - 1) in fact 5"),
+				run("let rec fact n = if n < 1 then 1 else n * fact (n - 1) in fact 5")
 			).toBe(120);
 		});
 
 		test("再帰関数（フィボナッチ）を定義して呼び出せる", () => {
 			expect(
 				run(
-					"let rec fib n = if n < 2 then n else fib (n - 1) + fib (n - 2) in fib 10",
-				),
+					"let rec fib n = if n < 2 then n else fib (n - 1) + fib (n - 2) in fib 10"
+				)
 			).toBe(55);
 		});
 
 		test("高階関数（関数を返す関数）を定義して呼び出せる", () => {
 			expect(
-				run(
-					"let rec makeAdder x = let rec f y = x + y in f in (makeAdder 3) 5",
-				),
+				run("let rec makeAdder x = let rec f y = x + y in f in (makeAdder 3) 5")
 			).toBe(8);
 		});
 
 		test("関数を引数に取る関数を定義して呼び出せる", () => {
 			expect(
 				run(
-					"let rec apply f x = f x in let rec double n = n * 2 in apply double 5",
-				),
+					"let rec apply f x = f x in let rec double n = n * 2 in apply double 5"
+				)
 			).toBe(10);
 		});
 	});
@@ -168,6 +166,54 @@ describe("run", () => {
 
 		test("未定義の変数でエラー", () => {
 			expect(() => run("let x = 1 in y")).toThrow("Variable not found: y");
+		});
+	});
+
+	describe("型エラー", () => {
+		test("算術演算にboolを使うとエラー", () => {
+			expect(() => run("true + 1")).toThrow("Type mismatch");
+		});
+
+		test("算術演算の両辺がboolでエラー", () => {
+			expect(() => run("true * false")).toThrow("Type mismatch");
+		});
+
+		test("比較演算にboolを使うとエラー", () => {
+			expect(() => run("true < false")).toThrow("Type mismatch");
+		});
+
+		test("ifの条件がintでエラー", () => {
+			expect(() => run("if 1 then 2 else 3")).toThrow("Type mismatch");
+		});
+
+		test("ifの分岐の型が異なるとエラー", () => {
+			expect(() => run("if true then 1 else false")).toThrow("Type mismatch");
+		});
+
+		test("関数でないものを呼び出すとエラー", () => {
+			expect(() => run("let x = 1 in x 2")).toThrow("Type mismatch");
+		});
+
+		test("関数に渡す引数の型が異なるとエラー", () => {
+			expect(() => run("let rec f x = x + 1 in f true")).toThrow(
+				"Type mismatch"
+			);
+		});
+
+		test("関数の引数の数が異なるとエラー", () => {
+			expect(() => run("let rec f x y = x + y in f 1")).toThrow(
+				"Function type mismatch"
+			);
+		});
+
+		test("単項マイナスにboolを使うとエラー", () => {
+			expect(() => run("-true")).toThrow("Type mismatch");
+		});
+
+		test("let式の変数をboolとintで使うとエラー", () => {
+			expect(() => run("let x = 1 in if x then 2 else 3")).toThrow(
+				"Type mismatch"
+			);
 		});
 	});
 });
