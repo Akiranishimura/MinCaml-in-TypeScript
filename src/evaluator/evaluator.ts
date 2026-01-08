@@ -1,8 +1,9 @@
 import type { Expr } from "../parser/parser";
 
-export type Value = number | boolean | Closure;
+export type Value = number | boolean | Closure | Tuple;
 type Env = Map<string, Value>;
 type Closure = { type: "Closure"; args: string[]; body: Expr; env: Env };
+type Tuple = { type: "Tuple"; elements: Value[] };
 
 const isClosure = (value: Value): value is Closure => {
 	return (
@@ -10,6 +11,9 @@ const isClosure = (value: Value): value is Closure => {
 	);
 };
 
+const isTuple = (value: Value): value is Tuple => {
+	return typeof value === "object" && value !== null && value.type === "Tuple";
+};
 const evalNumber = (ast: Expr, env: Env): number => {
 	const v = evaluate(ast, env);
 	if (typeof v !== "number") {
@@ -31,6 +35,12 @@ export const evaluate = (ast: Expr, env: Env = new Map()): Value => {
 	}
 	if (ast.type === "Bool") {
 		return ast.value;
+	}
+	if (ast.type === "Tuple") {
+		return {
+			type: "Tuple",
+			elements: ast.elements.map((e) => evaluate(e)),
+		};
 	}
 	if (ast.type === "UnaryOp") {
 		return -evalNumber(ast.expr, env);
@@ -59,12 +69,28 @@ export const evaluate = (ast: Expr, env: Env = new Map()): Value => {
 		newEnv.set(ast.func.name, closure);
 		return evaluate(ast.body, newEnv);
 	}
+	if (ast.type === "LetTuple") {
+		const value = evaluate(ast.value, env);
+		if (!isTuple(value)) {
+			throw new Error(
+				"Expected tuple, got " + (value === null ? "null" : typeof value)
+			);
+		}
+		const newEnv = new Map(env);
+		ast.names.forEach((name, i) => {
+			if (value.elements[i] === undefined) {
+				throw new Error("Expected element, got undefined for element " + name);
+			}
+			newEnv.set(name, value.elements[i]);
+		});
+		return evaluate(ast.body, newEnv);
+	}
 
 	if (ast.type === "App") {
 		const func = evaluate(ast.func, env);
 		if (!isClosure(func)) {
 			throw new Error(
-				"Expected closure, got " + (func === null ? "null" : typeof func),
+				"Expected closure, got " + (func === null ? "null" : typeof func)
 			);
 		}
 		const argValues = ast.args.map((arg) => evaluate(arg, env));
@@ -72,7 +98,7 @@ export const evaluate = (ast: Expr, env: Env = new Map()): Value => {
 		func.args.forEach((argName, i) => {
 			if (argValues[i] === undefined) {
 				throw new Error(
-					"Expected argument, got undefined for argument " + argName,
+					"Expected argument, got undefined for argument " + argName
 				);
 			}
 			newEnv.set(argName, argValues[i]);

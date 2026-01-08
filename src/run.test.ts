@@ -120,29 +120,31 @@ describe("run", () => {
 
 		test("再帰関数（階乗）を定義して呼び出せる", () => {
 			expect(
-				run("let rec fact n = if n < 1 then 1 else n * fact (n - 1) in fact 5")
+				run("let rec fact n = if n < 1 then 1 else n * fact (n - 1) in fact 5"),
 			).toBe(120);
 		});
 
 		test("再帰関数（フィボナッチ）を定義して呼び出せる", () => {
 			expect(
 				run(
-					"let rec fib n = if n < 2 then n else fib (n - 1) + fib (n - 2) in fib 10"
-				)
+					"let rec fib n = if n < 2 then n else fib (n - 1) + fib (n - 2) in fib 10",
+				),
 			).toBe(55);
 		});
 
 		test("高階関数（関数を返す関数）を定義して呼び出せる", () => {
 			expect(
-				run("let rec makeAdder x = let rec f y = x + y in f in (makeAdder 3) 5")
+				run(
+					"let rec makeAdder x = let rec f y = x + y in f in (makeAdder 3) 5",
+				),
 			).toBe(8);
 		});
 
 		test("関数を引数に取る関数を定義して呼び出せる", () => {
 			expect(
 				run(
-					"let rec apply f x = f x in let rec double n = n * 2 in apply double 5"
-				)
+					"let rec apply f x = f x in let rec double n = n * 2 in apply double 5",
+				),
 			).toBe(10);
 		});
 	});
@@ -166,6 +168,53 @@ describe("run", () => {
 
 		test("未定義の変数でエラー", () => {
 			expect(() => run("let x = 1 in y")).toThrow("Variable not found: y");
+		});
+	});
+
+	describe("タプル", () => {
+		test("タプルを作成できる", () => {
+			const result = run("(1, 2)");
+			expect(result).toEqual({ type: "Tuple", elements: [1, 2] });
+		});
+
+		test("3要素タプルを作成できる", () => {
+			const result = run("(1, 2, 3)");
+			expect(result).toEqual({ type: "Tuple", elements: [1, 2, 3] });
+		});
+
+		test("式を含むタプルを作成できる", () => {
+			const result = run("(1 + 2, 3 * 4)");
+			expect(result).toEqual({ type: "Tuple", elements: [3, 12] });
+		});
+
+		test("タプル分解で要素を取り出せる", () => {
+			expect(run("let (x, y) = (1, 2) in x")).toBe(1);
+		});
+
+		test("タプル分解で2番目の要素を取り出せる", () => {
+			expect(run("let (x, y) = (1, 2) in y")).toBe(2);
+		});
+
+		test("タプル分解で要素を使った計算ができる", () => {
+			expect(run("let (x, y) = (3, 5) in x + y")).toBe(8);
+		});
+
+		test("3要素のタプル分解ができる", () => {
+			expect(run("let (x, y, z) = (1, 2, 3) in x + y + z")).toBe(6);
+		});
+
+		test("変数経由でタプルを分解できる", () => {
+			expect(run("let t = (10, 20) in let (x, y) = t in x + y")).toBe(30);
+		});
+
+		test("異なる型を含むタプルを分解できる", () => {
+			expect(run("let (x, y) = (1, true) in x")).toBe(1);
+		});
+
+		test("タプルと関数を組み合わせられる", () => {
+			expect(run("let rec add t = let (x, y) = t in x + y in add (3, 5)")).toBe(
+				8,
+			);
 		});
 	});
 
@@ -196,13 +245,13 @@ describe("run", () => {
 
 		test("関数に渡す引数の型が異なるとエラー", () => {
 			expect(() => run("let rec f x = x + 1 in f true")).toThrow(
-				"Type mismatch"
+				"Type mismatch",
 			);
 		});
 
 		test("関数の引数の数が異なるとエラー", () => {
 			expect(() => run("let rec f x y = x + y in f 1")).toThrow(
-				"Function type mismatch"
+				"Function type mismatch",
 			);
 		});
 
@@ -212,7 +261,7 @@ describe("run", () => {
 
 		test("let式の変数をboolとintで使うとエラー", () => {
 			expect(() => run("let x = 1 in if x then 2 else 3")).toThrow(
-				"Type mismatch"
+				"Type mismatch",
 			);
 		});
 	});

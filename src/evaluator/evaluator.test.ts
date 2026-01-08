@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { Expr } from "../parser/parser";
-import { evaluate } from "./evaluator";
+import { evaluate, type Value } from "./evaluator";
 
 describe("Evaluator", () => {
 	describe("リテラル", () => {
@@ -413,6 +413,166 @@ describe("Evaluator", () => {
 				},
 			};
 			expect(evaluate(ast)).toBe(5);
+		});
+	});
+
+	describe("タプル", () => {
+		test("タプルを評価できる", () => {
+			//(1, 2)
+
+			const ast: Expr = {
+				type: "Tuple",
+				elements: [
+					{ type: "Number", value: 1 },
+					{ type: "Number", value: 2 },
+				],
+			};
+			const expected: Value = {
+				type: "Tuple",
+				elements: [1, 2],
+			};
+			expect(evaluate(ast)).toEqual(expected);
+		});
+
+		test("タプルを用いることができる", () => {
+			// let (x, y) = (1, 2) in x
+
+			const ast: Expr = {
+				type: "LetTuple",
+				names: ["x", "y"],
+				value: {
+					type: "Tuple",
+					elements: [
+						{ type: "Number", value: 1 },
+						{ type: "Number", value: 2 },
+					],
+				},
+				body: {
+					type: "VAR",
+					name: "x",
+				},
+			};
+			expect(evaluate(ast)).toBe(1);
+		});
+
+		test("3要素タプルを評価できる", () => {
+			// (1, 2, 3)
+			const ast: Expr = {
+				type: "Tuple",
+				elements: [
+					{ type: "Number", value: 1 },
+					{ type: "Number", value: 2 },
+					{ type: "Number", value: 3 },
+				],
+			};
+			const expected: Value = {
+				type: "Tuple",
+				elements: [1, 2, 3],
+			};
+			expect(evaluate(ast)).toEqual(expected);
+		});
+
+		test("式を含むタプルを評価できる", () => {
+			// (1 + 2, 3 * 4)
+			const ast: Expr = {
+				type: "Tuple",
+				elements: [
+					{
+						type: "BinOp",
+						operator: "+",
+						left: { type: "Number", value: 1 },
+						right: { type: "Number", value: 2 },
+					},
+					{
+						type: "BinOp",
+						operator: "*",
+						left: { type: "Number", value: 3 },
+						right: { type: "Number", value: 4 },
+					},
+				],
+			};
+			const expected: Value = {
+				type: "Tuple",
+				elements: [3, 12],
+			};
+			expect(evaluate(ast)).toEqual(expected);
+		});
+
+		test("タプル分解でbodyに式を使える", () => {
+			// let (x, y) = (1, 2) in x + y
+			const ast: Expr = {
+				type: "LetTuple",
+				names: ["x", "y"],
+				value: {
+					type: "Tuple",
+					elements: [
+						{ type: "Number", value: 1 },
+						{ type: "Number", value: 2 },
+					],
+				},
+				body: {
+					type: "BinOp",
+					operator: "+",
+					left: { type: "VAR", name: "x" },
+					right: { type: "VAR", name: "y" },
+				},
+			};
+			expect(evaluate(ast)).toBe(3);
+		});
+
+		test("3要素のタプル分解ができる", () => {
+			// let (x, y, z) = (1, 2, 3) in x + y + z
+			const ast: Expr = {
+				type: "LetTuple",
+				names: ["x", "y", "z"],
+				value: {
+					type: "Tuple",
+					elements: [
+						{ type: "Number", value: 1 },
+						{ type: "Number", value: 2 },
+						{ type: "Number", value: 3 },
+					],
+				},
+				body: {
+					type: "BinOp",
+					operator: "+",
+					left: {
+						type: "BinOp",
+						operator: "+",
+						left: { type: "VAR", name: "x" },
+						right: { type: "VAR", name: "y" },
+					},
+					right: { type: "VAR", name: "z" },
+				},
+			};
+			expect(evaluate(ast)).toBe(6);
+		});
+
+		test("変数経由でタプルを分解できる", () => {
+			// let t = (10, 20) in let (x, y) = t in x + y
+			const ast: Expr = {
+				type: "LET",
+				name: "t",
+				value: {
+					type: "Tuple",
+					elements: [
+						{ type: "Number", value: 10 },
+						{ type: "Number", value: 20 },
+					],
+				},
+				body: {
+					type: "LetTuple",
+					names: ["x", "y"],
+					value: { type: "VAR", name: "t" },
+					body: {
+						type: "BinOp",
+						operator: "+",
+						left: { type: "VAR", name: "x" },
+						right: { type: "VAR", name: "y" },
+					},
+				},
+			};
+			expect(evaluate(ast)).toBe(30);
 		});
 	});
 
