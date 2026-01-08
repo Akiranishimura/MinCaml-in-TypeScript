@@ -4,7 +4,8 @@ export type Type =
 	| { type: "TInt" }
 	| { type: "TBool" }
 	| { type: "TVar"; id: number; resolved: { value?: Type } }
-	| { type: "TFun"; args: Type[]; ret: Type };
+	| { type: "TFun"; args: Type[]; ret: Type }
+	| { type: "TTuple"; elements: Type[] };
 
 type TypeContext = {
 	typeEnv: Map<string, Type>;
@@ -32,14 +33,30 @@ const occursIn = (tvar: Type & { type: "TVar" }, t: Type): boolean => {
 	if (t.type === "TFun") {
 		return t.args.some((arg) => occursIn(tvar, arg)) || occursIn(tvar, t.ret);
 	}
+	if (t.type === "TTuple") {
+		return t.elements.some((element) => occursIn(tvar, element));
+	}
 	return false;
 };
 
 export const unify = (t1: Type, t2: Type): void => {
+	if (t1.type === "TTuple" && t2.type === "TTuple") {
+		if (t1.elements.length !== t2.elements.length) {
+			throw new Error(
+				"Tuple type mismatch: " +
+					t1.elements.length +
+					" and " +
+					t2.elements.length
+			);
+		}
+		t1.elements.forEach((element, i) => {
+			unify(element, t2.elements[i]!);
+		});
+	}
 	if (t1.type === "TFun" && t2.type === "TFun") {
 		if (t1.args.length !== t2.args.length) {
 			throw new Error(
-				"Function type mismatch: " + t1.args.length + " and " + t2.args.length,
+				"Function type mismatch: " + t1.args.length + " and " + t2.args.length
 			);
 		}
 		t1.args.forEach((arg, i) => {
@@ -93,6 +110,12 @@ const resolve = (t: Type): Type => {
 			ret: resolve(t.ret),
 		};
 	}
+	if (t.type === "TTuple") {
+		return {
+			type: "TTuple",
+			elements: t.elements.map(resolve),
+		};
+	}
 	return t;
 };
 
@@ -110,6 +133,12 @@ const inferInternal = (ast: Expr, ctx: TypeContext): Type => {
 	}
 	if (ast.type === "Bool") {
 		return { type: "TBool" };
+	}
+	if (ast.type === "Tuple") {
+		return {
+			type: "TTuple",
+			elements: ast.elements.map((element) => inferInternal(element, ctx)),
+		};
 	}
 	if (ast.type === "BinOp") {
 		const left = inferInternal(ast.left, ctx);
@@ -139,6 +168,16 @@ const inferInternal = (ast: Expr, ctx: TypeContext): Type => {
 		const value = inferInternal(ast.value, ctx);
 		const newEnv = new Map(typeEnv);
 		newEnv.set(ast.name, value);
+		return inferInternal(ast.body, { ...ctx, typeEnv: newEnv });
+	}
+	if (ast.type === "LetTuple") {
+		const value = inferInternal(ast.value, ctx);
+		const elementsTypes = ast.names.map(() => newVar());
+		unify(value, { type: "TTuple", elements: elementsTypes });
+		const newEnv = new Map(typeEnv);
+		ast.names.forEach((name, i) => {
+			newEnv.set(name, elementsTypes[i]!);
+		});
 		return inferInternal(ast.body, { ...ctx, typeEnv: newEnv });
 	}
 	if (ast.type === "IF") {

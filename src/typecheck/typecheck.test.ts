@@ -448,6 +448,99 @@ describe("Typecheck", () => {
 			expect(result).toEqual({ type: "TInt" });
 		});
 	});
+
+	describe("タプル", () => {
+		test("(1, 2) の型は TTuple([TInt, TInt])", () => {
+			const ast: Expr = {
+				type: "Tuple",
+				elements: [
+					{ type: "Number", value: 1 },
+					{ type: "Number", value: 2 },
+				],
+			};
+			const result = infer(ast);
+			expect(result).toEqual({
+				type: "TTuple",
+				elements: [{ type: "TInt" }, { type: "TInt" }],
+			});
+		});
+
+		test("(1, true) の型は TTuple([TInt, TBool])", () => {
+			const ast: Expr = {
+				type: "Tuple",
+				elements: [
+					{ type: "Number", value: 1 },
+					{ type: "Bool", value: true },
+				],
+			};
+			const result = infer(ast);
+			expect(result).toEqual({
+				type: "TTuple",
+				elements: [{ type: "TInt" }, { type: "TBool" }],
+			});
+		});
+
+		test("let (x, y) = (1, 2) in x の型は TInt", () => {
+			const ast: Expr = {
+				type: "LetTuple",
+				names: ["x", "y"],
+				value: {
+					type: "Tuple",
+					elements: [
+						{ type: "Number", value: 1 },
+						{ type: "Number", value: 2 },
+					],
+				},
+				body: { type: "VAR", name: "x" },
+			};
+			const result = infer(ast);
+			expect(result).toEqual({ type: "TInt" });
+		});
+
+		test("let (x, y) = (1, 2) in x + y の型は TInt", () => {
+			const ast: Expr = {
+				type: "LetTuple",
+				names: ["x", "y"],
+				value: {
+					type: "Tuple",
+					elements: [
+						{ type: "Number", value: 1 },
+						{ type: "Number", value: 2 },
+					],
+				},
+				body: {
+					type: "BinOp",
+					operator: "+",
+					left: { type: "VAR", name: "x" },
+					right: { type: "VAR", name: "y" },
+				},
+			};
+			const result = infer(ast);
+			expect(result).toEqual({ type: "TInt" });
+		});
+
+		test("let t = (1, true) in let (x, y) = t in x の型は TInt", () => {
+			const ast: Expr = {
+				type: "LET",
+				name: "t",
+				value: {
+					type: "Tuple",
+					elements: [
+						{ type: "Number", value: 1 },
+						{ type: "Bool", value: true },
+					],
+				},
+				body: {
+					type: "LetTuple",
+					names: ["x", "y"],
+					value: { type: "VAR", name: "t" },
+					body: { type: "VAR", name: "x" },
+				},
+			};
+			const result = infer(ast);
+			expect(result).toEqual({ type: "TInt" });
+		});
+	});
 });
 
 describe("unify", () => {
