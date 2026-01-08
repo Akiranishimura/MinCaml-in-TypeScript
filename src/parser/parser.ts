@@ -11,7 +11,7 @@ import type { Token } from "../lexer/lexer";
  * Term    ::= App (('*' | '/') App)*
  * App     ::= Factor Factor*
  * Factor  ::= '-' Factor | Primary
- * Primary ::= NUMBER | BOOL | '(' Expr ')' | IDENT
+ * Primary ::= NUMBER | BOOL | '(' Expr ')' | IDENT | Tuple
  */
 
 export type FuncDef = { name: string; args: string[]; body: Expr };
@@ -33,7 +33,9 @@ export type Expr =
 			type: "LetRec";
 			func: FuncDef;
 			body: Expr;
-	  };
+	  }
+	| { type: "Tuple"; elements: Expr[] }
+	| { type: "LetTuple"; names: string[]; value: Expr; body: Expr };
 
 type CompareOperator = "<" | ">" | "<=" | ">=" | "=" | "<>";
 
@@ -73,6 +75,19 @@ export const parse = (tokens: Token[]): Expr => {
 		if (token?.type === "LPAREN") {
 			advance();
 			const expr = parseExpr();
+			if (currentToken()?.type === "COMMA") {
+				const elements = [expr];
+				while (currentToken()?.type === "COMMA") {
+					advance();
+					const next = parseExpr();
+					elements.push(next);
+				}
+				if (currentToken()?.type !== "RPAREN") {
+					throw new Error(`Unexpected token: ${currentToken()?.type}`);
+				}
+				advance();
+				return { type: "Tuple", elements };
+			}
 			if (currentToken()?.type !== "RPAREN") {
 				throw new Error(`Unexpected token: ${currentToken()?.type}`);
 			}
@@ -171,8 +186,8 @@ export const parse = (tokens: Token[]): Expr => {
 	const parseExpr = (): Expr => {
 		if (currentToken()?.type === "LET") {
 			advance();
-			const expectedNameOrRecToken = currentToken();
-			if (expectedNameOrRecToken?.type === "REC") {
+			const firstToken = currentToken();
+			if (firstToken?.type === "REC") {
 				const args: string[] = [];
 				advance();
 				const expectedNameToken = currentToken();
@@ -203,10 +218,41 @@ export const parse = (tokens: Token[]): Expr => {
 				const body = parseExpr();
 				return { type: "LetRec", func, body };
 			}
-			const name =
-				expectedNameOrRecToken?.type === "IDENT"
-					? expectedNameOrRecToken.value
-					: "";
+			if (firstToken?.type === "LPAREN") {
+				//LetTuple
+				advance();
+				const firstNameToken = currentToken();
+				if (firstNameToken?.type !== "IDENT") {
+					throw new Error(`Unexpected token: ${firstNameToken?.type}`);
+				}
+				advance();
+				const names: string[] = [firstNameToken.value];
+				while (currentToken()?.type === "COMMA") {
+					advance();
+					const nextNameToken = currentToken();
+					if (nextNameToken?.type !== "IDENT") {
+						throw new Error(`Unexpected token: ${nextNameToken?.type}`);
+					}
+					advance();
+					names.push(nextNameToken.value);
+				}
+				if (currentToken()?.type !== "RPAREN") {
+					throw new Error(`Unexpected token: ${currentToken()?.type}`);
+				}
+				advance();
+				if (currentToken()?.type !== "EQ") {
+					throw new Error(`Unexpected token: ${currentToken()?.type}`);
+				}
+				advance();
+				const value = parseExpr();
+				if (currentToken()?.type !== "IN") {
+					throw new Error(`Unexpected token: ${currentToken()?.type}`);
+				}
+				advance();
+				const body = parseExpr();
+				return { type: "LetTuple", names, value, body };
+			}
+			const name = firstToken?.type === "IDENT" ? firstToken.value : "";
 			advance();
 			if (currentToken()?.type !== "EQ") {
 				throw new Error(`Unexpected token: ${currentToken()?.type}`);

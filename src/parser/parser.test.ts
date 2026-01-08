@@ -701,4 +701,198 @@ describe("Parser", () => {
 			});
 		});
 	});
+
+	describe("タプル", () => {
+		test("タプル作成をパースできる", () => {
+			// (1, 2)
+			const tokens: Token[] = [
+				{ type: "LPAREN" },
+				{ type: "NUMBER", value: 1 },
+				{ type: "COMMA" },
+				{ type: "NUMBER", value: 2 },
+				{ type: "RPAREN" },
+				{ type: "EOF" },
+			];
+			const expr = parse(tokens);
+			expect(expr).toEqual({
+				type: "Tuple",
+				elements: [
+					{ type: "Number", value: 1 },
+					{ type: "Number", value: 2 },
+				],
+			});
+		});
+
+		test("タプル分解をパースできる", () => {
+			// let (x, y) = t in x
+			const tokens: Token[] = [
+				{ type: "LET" },
+				{ type: "LPAREN" },
+				{ type: "IDENT", value: "x" },
+				{ type: "COMMA" },
+				{ type: "IDENT", value: "y" },
+				{ type: "RPAREN" },
+				{ type: "EQ" },
+				{ type: "IDENT", value: "t" },
+				{ type: "IN" },
+				{ type: "IDENT", value: "x" },
+				{ type: "EOF" },
+			];
+			const expr = parse(tokens);
+			expect(expr).toEqual({
+				type: "LetTuple",
+				names: ["x", "y"],
+				value: { type: "VAR", name: "t" },
+				body: { type: "VAR", name: "x" },
+			});
+		});
+
+		test("3要素タプルをパースできる", () => {
+			// (1, 2, 3)
+			const tokens: Token[] = [
+				{ type: "LPAREN" },
+				{ type: "NUMBER", value: 1 },
+				{ type: "COMMA" },
+				{ type: "NUMBER", value: 2 },
+				{ type: "COMMA" },
+				{ type: "NUMBER", value: 3 },
+				{ type: "RPAREN" },
+				{ type: "EOF" },
+			];
+			const expr = parse(tokens);
+			expect(expr).toEqual({
+				type: "Tuple",
+				elements: [
+					{ type: "Number", value: 1 },
+					{ type: "Number", value: 2 },
+					{ type: "Number", value: 3 },
+				],
+			});
+		});
+
+		test("式を含むタプルをパースできる", () => {
+			// (1 + 2, 3 < 4)
+			const tokens: Token[] = [
+				{ type: "LPAREN" },
+				{ type: "NUMBER", value: 1 },
+				{ type: "PLUS" },
+				{ type: "NUMBER", value: 2 },
+				{ type: "COMMA" },
+				{ type: "NUMBER", value: 3 },
+				{ type: "LT" },
+				{ type: "NUMBER", value: 4 },
+				{ type: "RPAREN" },
+				{ type: "EOF" },
+			];
+			const expr = parse(tokens);
+			expect(expr).toEqual({
+				type: "Tuple",
+				elements: [
+					{
+						type: "BinOp",
+						operator: "+",
+						left: { type: "Number", value: 1 },
+						right: { type: "Number", value: 2 },
+					},
+					{
+						type: "BinOp",
+						operator: "<",
+						left: { type: "Number", value: 3 },
+						right: { type: "Number", value: 4 },
+					},
+				],
+			});
+		});
+
+		test("3要素のタプル分解をパースできる", () => {
+			// let (x, y, z) = t in x
+			const tokens: Token[] = [
+				{ type: "LET" },
+				{ type: "LPAREN" },
+				{ type: "IDENT", value: "x" },
+				{ type: "COMMA" },
+				{ type: "IDENT", value: "y" },
+				{ type: "COMMA" },
+				{ type: "IDENT", value: "z" },
+				{ type: "RPAREN" },
+				{ type: "EQ" },
+				{ type: "IDENT", value: "t" },
+				{ type: "IN" },
+				{ type: "IDENT", value: "x" },
+				{ type: "EOF" },
+			];
+			const expr = parse(tokens);
+			expect(expr).toEqual({
+				type: "LetTuple",
+				names: ["x", "y", "z"],
+				value: { type: "VAR", name: "t" },
+				body: { type: "VAR", name: "x" },
+			});
+		});
+
+		test("タプル分解のbodyに式を含む", () => {
+			// let (x, y) = t in x + y
+			const tokens: Token[] = [
+				{ type: "LET" },
+				{ type: "LPAREN" },
+				{ type: "IDENT", value: "x" },
+				{ type: "COMMA" },
+				{ type: "IDENT", value: "y" },
+				{ type: "RPAREN" },
+				{ type: "EQ" },
+				{ type: "IDENT", value: "t" },
+				{ type: "IN" },
+				{ type: "IDENT", value: "x" },
+				{ type: "PLUS" },
+				{ type: "IDENT", value: "y" },
+				{ type: "EOF" },
+			];
+			const expr = parse(tokens);
+			expect(expr).toEqual({
+				type: "LetTuple",
+				names: ["x", "y"],
+				value: { type: "VAR", name: "t" },
+				body: {
+					type: "BinOp",
+					operator: "+",
+					left: { type: "VAR", name: "x" },
+					right: { type: "VAR", name: "y" },
+				},
+			});
+		});
+
+		test("タプルリテラルを直接分解できる", () => {
+			// let (x, y) = (1, 2) in x
+			const tokens: Token[] = [
+				{ type: "LET" },
+				{ type: "LPAREN" },
+				{ type: "IDENT", value: "x" },
+				{ type: "COMMA" },
+				{ type: "IDENT", value: "y" },
+				{ type: "RPAREN" },
+				{ type: "EQ" },
+				{ type: "LPAREN" },
+				{ type: "NUMBER", value: 1 },
+				{ type: "COMMA" },
+				{ type: "NUMBER", value: 2 },
+				{ type: "RPAREN" },
+				{ type: "IN" },
+				{ type: "IDENT", value: "x" },
+				{ type: "EOF" },
+			];
+			const expr = parse(tokens);
+			expect(expr).toEqual({
+				type: "LetTuple",
+				names: ["x", "y"],
+				value: {
+					type: "Tuple",
+					elements: [
+						{ type: "Number", value: 1 },
+						{ type: "Number", value: 2 },
+					],
+				},
+				body: { type: "VAR", name: "x" },
+			});
+		});
+	});
 });
