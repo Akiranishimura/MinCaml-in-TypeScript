@@ -12,6 +12,7 @@ export type Token =
 	| { type: "IF" }
 	| { type: "THEN" }
 	| { type: "ELSE" }
+	| { type: "COMMA" }
 	//演算子
 	| { type: "PLUS" }
 	| { type: "MINUS" }
@@ -124,6 +125,12 @@ export const tokenize = (input: string): Token[] => {
 				tokens.push({ type: "GT" });
 				position++;
 			}
+			continue;
+		}
+
+		if (char === ",") {
+			tokens.push({ type: "COMMA" });
+			position++;
 			continue;
 		}
 

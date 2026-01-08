@@ -122,6 +122,11 @@ describe("Lexer", () => {
 				{ type: "EOF" },
 			]);
 		});
+
+		test("コンマをトークン化できる", () => {
+			const tokens = tokenize(",");
+			expect(tokens).toEqual([{ type: "COMMA" }, { type: "EOF" }]);
+		});
 	});
 
 	describe("識別子", () => {
@@ -195,6 +200,53 @@ describe("Lexer", () => {
 				{ type: "IDENT", value: "add" },
 				{ type: "NUMBER", value: 1 },
 				{ type: "NUMBER", value: 2 },
+				{ type: "EOF" },
+			]);
+		});
+	});
+
+	describe("タプル", () => {
+		test("タプル作成をトークン化できる", () => {
+			const tokens = tokenize("(1, true)");
+			expect(tokens).toEqual([
+				{ type: "LPAREN" },
+				{ type: "NUMBER", value: 1 },
+				{ type: "COMMA" },
+				{ type: "TRUE" },
+				{ type: "RPAREN" },
+				{ type: "EOF" },
+			]);
+		});
+
+		test("3要素タプルをトークン化できる", () => {
+			const tokens = tokenize("(1, 2, 3)");
+			expect(tokens).toEqual([
+				{ type: "LPAREN" },
+				{ type: "NUMBER", value: 1 },
+				{ type: "COMMA" },
+				{ type: "NUMBER", value: 2 },
+				{ type: "COMMA" },
+				{ type: "NUMBER", value: 3 },
+				{ type: "RPAREN" },
+				{ type: "EOF" },
+			]);
+		});
+
+		test("タプル分解をトークン化できる", () => {
+			const tokens = tokenize("let (x, y) = t in x + y");
+			expect(tokens).toEqual([
+				{ type: "LET" },
+				{ type: "LPAREN" },
+				{ type: "IDENT", value: "x" },
+				{ type: "COMMA" },
+				{ type: "IDENT", value: "y" },
+				{ type: "RPAREN" },
+				{ type: "EQ" },
+				{ type: "IDENT", value: "t" },
+				{ type: "IN" },
+				{ type: "IDENT", value: "x" },
+				{ type: "PLUS" },
+				{ type: "IDENT", value: "y" },
 				{ type: "EOF" },
 			]);
 		});
