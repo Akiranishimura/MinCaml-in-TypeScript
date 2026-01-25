@@ -11,7 +11,9 @@ import type { Token } from "../lexer/lexer";
  * Term    ::= App (('*' | '/') App)*
  * App     ::= Factor Factor*
  * Factor  ::= '-' Factor | Primary
- * Primary ::= NUMBER | BOOL | '(' Expr ')' | IDENT | Tuple
+ * Primary ::= Atom Postfix*
+ * Atom ::= NUMBER | BOOL | '(' Expr ')' | IDENT | Tuple | Array
+ * Postfix ::= '.(' Expr ')'
  */
 
 export type FuncDef = { name: string; args: string[]; body: Expr };
@@ -35,7 +37,10 @@ export type Expr =
 			body: Expr;
 	  }
 	| { type: "Tuple"; elements: Expr[] }
-	| { type: "LetTuple"; names: string[]; value: Expr; body: Expr };
+	| { type: "LetTuple"; names: string[]; value: Expr; body: Expr }
+	| { type: "ArrayCreate"; size: Expr; init: Expr }
+	| { type: "ArrayGet"; array: Expr; index: Expr }
+	| { type: "ArrayPut"; array: Expr; index: Expr; value: Expr };
 
 type CompareOperator = "<" | ">" | "<=" | ">=" | "=" | "<>";
 
@@ -57,8 +62,8 @@ export const parse = (tokens: Token[]): Expr => {
 	const currentToken = () => tokens[position];
 	const advance = () => position++;
 
-	// Primary ::= NUMBER | BOOL | '(' Expr ')' | IDENT
-	const parsePrimary = (): Expr => {
+	// Atom ::= NUMBER | BOOL | '(' Expr ')' | IDENT | 'Array.create' ...
+	const parseAtom = (): Expr => {
 		const token = currentToken();
 		if (token?.type === "TRUE") {
 			advance();
@@ -94,11 +99,41 @@ export const parse = (tokens: Token[]): Expr => {
 			advance();
 			return expr;
 		}
+		if (token?.type === "ARRAY_CREATE") {
+			advance();
+			const size = parseAtom();
+			const init = parseAtom();
+			return { type: "ArrayCreate", size, init };
+		}
 		if (token?.type === "IDENT") {
 			advance();
 			return { type: "VAR", name: token.value };
 		}
 		throw new Error(`Unexpected token: ${token?.type}`);
+	};
+
+	// Primary ::= Atom Postfix*
+	// Postfix ::= '.(' Expr ')'
+	const parsePrimary = (): Expr => {
+		let expr = parseAtom();
+
+		while (currentToken()?.type === "DOT_LPAREN") {
+			advance();
+			const index = parseExpr();
+			const expectRPAREN = currentToken();
+			if (expectRPAREN?.type === "RPAREN") {
+				advance();
+				if (currentToken()?.type === "LEFT_ARROW") {
+					advance();
+					const value = parseExpr();
+					return { type: "ArrayPut", array: expr, index, value };
+				}
+				expr = { type: "ArrayGet", array: expr, index };
+			} else {
+				throw new Error(`Unexpected token: ${expectRPAREN?.type}`);
+			}
+		}
+		return expr;
 	};
 
 	// Factor ::= '-' Factor | Primary

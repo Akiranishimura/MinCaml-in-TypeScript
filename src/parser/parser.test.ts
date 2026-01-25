@@ -895,4 +895,147 @@ describe("Parser", () => {
 			});
 		});
 	});
+	describe("配列", () => {
+		test("配列の作成をパースできる", () => {
+			const tokens: Token[] = [
+				{ type: "ARRAY_CREATE" },
+				{ type: "NUMBER", value: 5 },
+				{ type: "NUMBER", value: 0 },
+				{ type: "EOF" },
+			];
+			const expr = parse(tokens);
+			expect(expr).toEqual({
+				type: "ArrayCreate",
+				size: { type: "Number", value: 5 },
+				init: { type: "Number", value: 0 },
+			});
+		});
+		test("配列の要素取得をパースできる", () => {
+			const tokens: Token[] = [
+				{ type: "IDENT", value: "arr" },
+				{ type: "DOT_LPAREN" },
+				{ type: "NUMBER", value: 1 },
+				{ type: "RPAREN" },
+				{ type: "EOF" },
+			];
+			const expr = parse(tokens);
+			expect(expr).toEqual({
+				type: "ArrayGet",
+				array: { type: "VAR", name: "arr" },
+				index: { type: "Number", value: 1 },
+			});
+		});
+		test("配列の代入をパースできる", () => {
+			const tokens: Token[] = [
+				{ type: "IDENT", value: "arr" },
+				{ type: "DOT_LPAREN" },
+				{ type: "NUMBER", value: 1 },
+				{ type: "RPAREN" },
+				{ type: "LEFT_ARROW" },
+				{ type: "NUMBER", value: 10 },
+				{ type: "EOF" },
+			];
+			const expr = parse(tokens);
+			expect(expr).toEqual({
+				type: "ArrayPut",
+				array: { type: "VAR", name: "arr" },
+				index: { type: "Number", value: 1 },
+				value: { type: "Number", value: 10 },
+			});
+		});
+
+		test("ネストした配列アクセスをパースできる", () => {
+			// arr.(0).(1)
+			const tokens: Token[] = [
+				{ type: "IDENT", value: "arr" },
+				{ type: "DOT_LPAREN" },
+				{ type: "NUMBER", value: 0 },
+				{ type: "RPAREN" },
+				{ type: "DOT_LPAREN" },
+				{ type: "NUMBER", value: 1 },
+				{ type: "RPAREN" },
+				{ type: "EOF" },
+			];
+			const expr = parse(tokens);
+			expect(expr).toEqual({
+				type: "ArrayGet",
+				array: {
+					type: "ArrayGet",
+					array: { type: "VAR", name: "arr" },
+					index: { type: "Number", value: 0 },
+				},
+				index: { type: "Number", value: 1 },
+			});
+		});
+
+		test("式をインデックスに使える", () => {
+			// arr.(i + 1)
+			const tokens: Token[] = [
+				{ type: "IDENT", value: "arr" },
+				{ type: "DOT_LPAREN" },
+				{ type: "IDENT", value: "i" },
+				{ type: "PLUS" },
+				{ type: "NUMBER", value: 1 },
+				{ type: "RPAREN" },
+				{ type: "EOF" },
+			];
+			const expr = parse(tokens);
+			expect(expr).toEqual({
+				type: "ArrayGet",
+				array: { type: "VAR", name: "arr" },
+				index: {
+					type: "BinOp",
+					operator: "+",
+					left: { type: "VAR", name: "i" },
+					right: { type: "Number", value: 1 },
+				},
+			});
+		});
+
+		test("括弧式に対する配列アクセス", () => {
+			// (arr).(0)
+			const tokens: Token[] = [
+				{ type: "LPAREN" },
+				{ type: "IDENT", value: "arr" },
+				{ type: "RPAREN" },
+				{ type: "DOT_LPAREN" },
+				{ type: "NUMBER", value: 0 },
+				{ type: "RPAREN" },
+				{ type: "EOF" },
+			];
+			const expr = parse(tokens);
+			expect(expr).toEqual({
+				type: "ArrayGet",
+				array: { type: "VAR", name: "arr" },
+				index: { type: "Number", value: 0 },
+			});
+		});
+
+		test("配列の値を別の配列に代入できる", () => {
+			// arr.(0) <- arr.(1)
+			const tokens: Token[] = [
+				{ type: "IDENT", value: "arr" },
+				{ type: "DOT_LPAREN" },
+				{ type: "NUMBER", value: 0 },
+				{ type: "RPAREN" },
+				{ type: "LEFT_ARROW" },
+				{ type: "IDENT", value: "arr" },
+				{ type: "DOT_LPAREN" },
+				{ type: "NUMBER", value: 1 },
+				{ type: "RPAREN" },
+				{ type: "EOF" },
+			];
+			const expr = parse(tokens);
+			expect(expr).toEqual({
+				type: "ArrayPut",
+				array: { type: "VAR", name: "arr" },
+				index: { type: "Number", value: 0 },
+				value: {
+					type: "ArrayGet",
+					array: { type: "VAR", name: "arr" },
+					index: { type: "Number", value: 1 },
+				},
+			});
+		});
+	});
 });
