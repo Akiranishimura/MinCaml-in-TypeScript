@@ -218,6 +218,75 @@ describe("run", () => {
 		});
 	});
 
+	describe("配列", () => {
+		test("配列を作成できる", () => {
+			const result = run("Array.create 3 0");
+			expect(result).toEqual({ type: "Array", elements: [0, 0, 0] });
+		});
+
+		test("配列から値を取得できる", () => {
+			expect(run("let a = Array.create 3 42 in a.(0)")).toBe(42);
+		});
+
+		test("配列に値を代入して取得できる", () => {
+			expect(
+				run("let a = Array.create 3 0 in let u = a.(0) <- 10 in a.(0)"),
+			).toBe(10);
+		});
+
+		test("代入していない要素は初期値のまま", () => {
+			expect(
+				run("let a = Array.create 3 0 in let u = a.(0) <- 10 in a.(1)"),
+			).toBe(0);
+		});
+
+		test("複数回代入できる", () => {
+			expect(
+				run(
+					"let a = Array.create 3 0 in let u = a.(0) <- 5 in let v = a.(1) <- 10 in a.(1)",
+				),
+			).toBe(10);
+		});
+
+		test("配列のサイズに式を使える", () => {
+			expect(run("let n = 2 in let a = Array.create (n + 1) 7 in a.(2)")).toBe(
+				7,
+			);
+		});
+
+		test("配列の初期値に式を使える", () => {
+			expect(run("let a = Array.create 2 (3 + 4) in a.(0)")).toBe(7);
+		});
+
+		test("配列のインデックスに式を使える", () => {
+			expect(
+				run(
+					"let a = Array.create 3 0 in let u = a.(0) <- 99 in let i = 0 in a.(i)",
+				),
+			).toBe(99);
+		});
+
+		test("配列と関数を組み合わせられる", () => {
+			expect(
+				run(
+					"let a = Array.create 3 0 in let rec getelem arr i = arr.(i) in let u = a.(1) <- 42 in getelem a 1",
+				),
+			).toBe(42);
+		});
+
+		test("範囲外アクセスでエラー", () => {
+			expect(() => run("let a = Array.create 3 0 in a.(3)")).toThrow();
+		});
+
+		test("範囲外への代入でエラー", () => {
+			expect(() => run("let a = Array.create 3 0 in a.(3) <- 1")).toThrow();
+		});
+
+		test("負のインデックスでエラー", () => {
+			expect(() => run("let a = Array.create 3 0 in a.(-1)")).toThrow();
+		});
+	});
+
 	describe("型エラー", () => {
 		test("算術演算にboolを使うとエラー", () => {
 			expect(() => run("true + 1")).toThrow("Type mismatch");
