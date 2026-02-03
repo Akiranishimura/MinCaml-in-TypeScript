@@ -5,7 +5,9 @@ export type Type =
 	| { type: "TBool" }
 	| { type: "TVar"; id: number; resolved: { value?: Type } }
 	| { type: "TFun"; args: Type[]; ret: Type }
-	| { type: "TTuple"; elements: Type[] };
+	| { type: "TTuple"; elements: Type[] }
+	| { type: "TArray"; elementType: Type }
+	| { type: "TUnit" };
 
 type TypeContext = {
 	typeEnv: Map<string, Type>;
@@ -36,6 +38,10 @@ const occursIn = (tvar: Type & { type: "TVar" }, t: Type): boolean => {
 	if (t.type === "TTuple") {
 		return t.elements.some((element) => occursIn(tvar, element));
 	}
+
+	if (t.type === "TArray") {
+		return occursIn(tvar, t.elementType);
+	}
 	return false;
 };
 
@@ -52,6 +58,11 @@ export const unify = (t1: Type, t2: Type): void => {
 		t1.elements.forEach((element, i) => {
 			unify(element, t2.elements[i]!);
 		});
+		return;
+	}
+	if (t1.type === "TArray" && t2.type === "TArray") {
+		unify(t1.elementType, t2.elementType);
+		return;
 	}
 	if (t1.type === "TFun" && t2.type === "TFun") {
 		if (t1.args.length !== t2.args.length) {
@@ -116,6 +127,12 @@ const resolve = (t: Type): Type => {
 			elements: t.elements.map(resolve),
 		};
 	}
+	if (t.type === "TArray") {
+		return {
+			type: "TArray",
+			elementType: resolve(t.elementType),
+		};
+	}
 	return t;
 };
 
@@ -140,6 +157,27 @@ const inferInternal = (ast: Expr, ctx: TypeContext): Type => {
 			elements: ast.elements.map((element) => inferInternal(element, ctx)),
 		};
 	}
+	if (ast.type === "ArrayCreate") {
+		unify(inferInternal(ast.size, ctx), { type: "TInt" });
+		return { type: "TArray", elementType: inferInternal(ast.init, ctx) };
+	}
+	if (ast.type === "ArrayGet") {
+		unify(inferInternal(ast.index, ctx), { type: "TInt" });
+		const elementType = newVar();
+		const arrayType = inferInternal(ast.array, ctx);
+		unify(arrayType, { type: "TArray", elementType });
+		return elementType;
+	}
+
+	if (ast.type === "ArrayPut") {
+		unify(inferInternal(ast.index, ctx), { type: "TInt" });
+		const elementType = newVar();
+		const arrayType = inferInternal(ast.array, ctx);
+		unify(arrayType, { type: "TArray", elementType });
+		unify(elementType, inferInternal(ast.value, ctx));
+		return { type: "TUnit" };
+	}
+
 	if (ast.type === "BinOp") {
 		const left = inferInternal(ast.left, ctx);
 		const right = inferInternal(ast.right, ctx);

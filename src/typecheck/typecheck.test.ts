@@ -541,6 +541,115 @@ describe("Typecheck", () => {
 			expect(result).toEqual({ type: "TInt" });
 		});
 	});
+	describe("配列", () => {
+		test("配列宣言の型はTArray", () => {
+			const ast: Expr = {
+				type: "ArrayCreate",
+				size: { type: "Number", value: 4 },
+				init: { type: "Number", value: 0 },
+			};
+			const result = infer(ast);
+			expect(result).toEqual({ type: "TArray", elementType: { type: "TInt" } });
+		});
+
+		test("配列宣言のsizeがintでないとエラー", () => {
+			const ast: Expr = {
+				type: "ArrayCreate",
+				size: { type: "Bool", value: true },
+				init: { type: "Number", value: 0 },
+			};
+			expect(() => infer(ast)).toThrow();
+		});
+
+		test("ArrayGetで正しく要素の型を推論できる", () => {
+			const ast: Expr = {
+				type: "ArrayGet",
+				array: {
+					type: "ArrayCreate",
+					size: { type: "Number", value: 4 },
+					init: { type: "Number", value: 0 },
+				},
+				index: { type: "Number", value: 1 },
+			};
+			const result = infer(ast);
+			expect(result).toEqual({ type: "TInt" });
+		});
+
+		test("ArrayPutで正しく配列に代入できる", () => {
+			const ast: Expr = {
+				type: "ArrayPut",
+				array: {
+					type: "ArrayCreate",
+					size: { type: "Number", value: 4 },
+					init: { type: "Number", value: 0 },
+				},
+				index: { type: "Number", value: 1 },
+				value: { type: "Number", value: 2 },
+			};
+			const result = infer(ast);
+			expect(result).toEqual({ type: "TUnit" });
+		});
+
+		test("ArrayGetのindexがintでないとエラー", () => {
+			const ast: Expr = {
+				type: "ArrayGet",
+				array: {
+					type: "ArrayCreate",
+					size: { type: "Number", value: 4 },
+					init: { type: "Number", value: 0 },
+				},
+				index: { type: "Bool", value: true },
+			};
+			expect(() => infer(ast)).toThrow();
+		});
+
+		test("ArrayGetの対象が配列でないとエラー", () => {
+			const ast: Expr = {
+				type: "ArrayGet",
+				array: { type: "Number", value: 42 },
+				index: { type: "Number", value: 0 },
+			};
+			expect(() => infer(ast)).toThrow();
+		});
+
+		test("ArrayPutのindexがintでないとエラー", () => {
+			const ast: Expr = {
+				type: "ArrayPut",
+				array: {
+					type: "ArrayCreate",
+					size: { type: "Number", value: 4 },
+					init: { type: "Number", value: 0 },
+				},
+				index: { type: "Bool", value: true },
+				value: { type: "Number", value: 10 },
+			};
+			expect(() => infer(ast)).toThrow();
+		});
+
+		test("ArrayPutの対象が配列でないとエラー", () => {
+			const ast: Expr = {
+				type: "ArrayPut",
+				array: { type: "Number", value: 42 },
+				index: { type: "Number", value: 0 },
+				value: { type: "Number", value: 10 },
+			};
+			expect(() => infer(ast)).toThrow();
+		});
+
+		test("ArrayPutのvalueが配列の要素型と一致しないとエラー", () => {
+			const ast: Expr = {
+				type: "ArrayPut",
+				array: {
+					type: "ArrayCreate",
+					size: { type: "Number", value: 4 },
+					init: { type: "Number", value: 0 },
+				},
+				index: { type: "Number", value: 0 },
+				value: { type: "Bool", value: true },
+			};
+			expect(() => infer(ast)).toThrow();
+		});
+	});
 });
 
 describe("unify", () => {
