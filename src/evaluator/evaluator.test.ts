@@ -576,6 +576,144 @@ describe("Evaluator", () => {
 		});
 	});
 
+	describe("配列", () => {
+		test("配列を評価できる", () => {
+			const ast: Expr = {
+				type: "ArrayCreate",
+				size: { type: "Number", value: 3 },
+				init: { type: "Number", value: 3 },
+			};
+			const expected: Value = {
+				type: "Array",
+				elements: [3, 3, 3],
+			};
+			expect(evaluate(ast)).toEqual(expected);
+		});
+
+		test("配列から値を取り出すことができる", () => {
+			const ast: Expr = {
+				type: "ArrayGet",
+				array: {
+					type: "ArrayCreate",
+					size: { type: "Number", value: 3 },
+					init: { type: "Number", value: 3 },
+				},
+				index: { type: "Number", value: 2 },
+			};
+			expect(evaluate(ast)).toBe(3);
+		});
+
+		test("配列に値を代入できる", () => {
+			// let arr = Array.create 3 0 in arr.(0) <- 10; arr.(0)
+			const ast: Expr = {
+				type: "LET",
+				name: "arr",
+				value: {
+					type: "ArrayCreate",
+					size: { type: "Number", value: 3 },
+					init: { type: "Number", value: 0 },
+				},
+				body: {
+					type: "LET",
+					name: "_",
+					value: {
+						type: "ArrayPut",
+						array: { type: "VAR", name: "arr" },
+						index: { type: "Number", value: 0 },
+						value: { type: "Number", value: 10 },
+					},
+					body: {
+						type: "ArrayGet",
+						array: { type: "VAR", name: "arr" },
+						index: { type: "Number", value: 0 },
+					},
+				},
+			};
+			expect(evaluate(ast)).toBe(10);
+		});
+
+		test("代入していない要素は初期値のまま", () => {
+			// let arr = Array.create 3 0 in arr.(0) <- 10; arr.(1)
+			const ast: Expr = {
+				type: "LET",
+				name: "arr",
+				value: {
+					type: "ArrayCreate",
+					size: { type: "Number", value: 3 },
+					init: { type: "Number", value: 0 },
+				},
+				body: {
+					type: "LET",
+					name: "_",
+					value: {
+						type: "ArrayPut",
+						array: { type: "VAR", name: "arr" },
+						index: { type: "Number", value: 0 },
+						value: { type: "Number", value: 10 },
+					},
+					body: {
+						type: "ArrayGet",
+						array: { type: "VAR", name: "arr" },
+						index: { type: "Number", value: 1 },
+					},
+				},
+			};
+			expect(evaluate(ast)).toBe(0);
+		});
+
+		test("複数回代入できる", () => {
+			// let arr = Array.create 3 0 in arr.(0) <- 5; arr.(1) <- 10; arr.(1)
+			const ast: Expr = {
+				type: "LET",
+				name: "arr",
+				value: {
+					type: "ArrayCreate",
+					size: { type: "Number", value: 3 },
+					init: { type: "Number", value: 0 },
+				},
+				body: {
+					type: "LET",
+					name: "_",
+					value: {
+						type: "ArrayPut",
+						array: { type: "VAR", name: "arr" },
+						index: { type: "Number", value: 0 },
+						value: { type: "Number", value: 5 },
+					},
+					body: {
+						type: "LET",
+						name: "_",
+						value: {
+							type: "ArrayPut",
+							array: { type: "VAR", name: "arr" },
+							index: { type: "Number", value: 1 },
+							value: { type: "Number", value: 10 },
+						},
+						body: {
+							type: "ArrayGet",
+							array: { type: "VAR", name: "arr" },
+							index: { type: "Number", value: 1 },
+						},
+					},
+				},
+			};
+			expect(evaluate(ast)).toBe(10);
+		});
+
+		test("範囲外アクセスでエラー", () => {
+			const ast: Expr = {
+				type: "ArrayGet",
+				array: {
+					type: "ArrayCreate",
+					size: { type: "Number", value: 3 },
+					init: { type: "Number", value: 0 },
+				},
+				index: { type: "Number", value: 5 },
+			};
+			expect(() => evaluate(ast)).toThrow();
+		});
+	});
+
 	describe("関数定義と呼び出し", () => {
 		test("恒等関数を定義して呼び出せる", () => {
 			// let rec f x = x in f 1 => 1

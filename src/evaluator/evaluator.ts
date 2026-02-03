@@ -1,9 +1,10 @@
 import type { Expr } from "../parser/parser";
 
-export type Value = number | boolean | Closure | Tuple;
+export type Value = number | boolean | Closure | Tuple | MinCamlArray | null;
 type Env = Map<string, Value>;
 type Closure = { type: "Closure"; args: string[]; body: Expr; env: Env };
 type Tuple = { type: "Tuple"; elements: Value[] };
+type MinCamlArray = { type: "Array"; elements: Value[] };
 
 const isClosure = (value: Value): value is Closure => {
 	return (
@@ -13,6 +14,10 @@ const isClosure = (value: Value): value is Closure => {
 
 const isTuple = (value: Value): value is Tuple => {
 	return typeof value === "object" && value !== null && value.type === "Tuple";
+};
+
+const isArray = (value: Value): value is MinCamlArray => {
+	return typeof value === "object" && value !== null && value.type === "Array";
 };
 const evalNumber = (ast: Expr, env: Env): number => {
 	const v = evaluate(ast, env);
@@ -29,6 +34,7 @@ const evalBool = (ast: Expr, env: Env): boolean => {
 	}
 	return v;
 };
+
 export const evaluate = (ast: Expr, env: Env = new Map()): Value => {
 	if (ast.type === "Number") {
 		return ast.value;
@@ -39,9 +45,53 @@ export const evaluate = (ast: Expr, env: Env = new Map()): Value => {
 	if (ast.type === "Tuple") {
 		return {
 			type: "Tuple",
-			elements: ast.elements.map((e) => evaluate(e)),
+			elements: ast.elements.map((e) => evaluate(e, env)),
 		};
 	}
+
+	if (ast.type === "ArrayCreate") {
+		const size = evalNumber(ast.size, env);
+		const init = evaluate(ast.init, env);
+		return {
+			type: "Array",
+			elements: new Array(size).fill(init),
+		};
+	}
+
+	if (ast.type === "ArrayGet") {
+		const expectedArray = evaluate(ast.array, env);
+		if (!isArray(expectedArray)) {
+			throw new Error(
+				"Expected array, got " +
+					(expectedArray === null ? "null" : typeof expectedArray),
+			);
+		}
+		const array = expectedArray.elements;
+		const index = evalNumber(ast.index, env);
+		if (index < 0 || index >= array.length) {
+			throw new Error("Array index out of bounds");
+		}
+		return array[index]!;
+	}
+
+	if (ast.type === "ArrayPut") {
+		const expectedArray = evaluate(ast.array, env);
+		if (!isArray(expectedArray)) {
+			throw new Error(
+				"Expected array, got " +
+					(expectedArray === null ? "null" : typeof expectedArray),
+			);
+		}
+		const array = expectedArray.elements;
+		const index = evalNumber(ast.index, env);
+		if (index < 0 || index >= array.length) {
+			throw new Error("Array index out of bounds");
+		}
+		const value = evaluate(ast.value, env);
+		array[index] = value;
+		return null;
+	}
+
 	if (ast.type === "UnaryOp") {
 		return -evalNumber(ast.expr, env);
 	}
@@ -73,7 +123,7 @@ export const evaluate = (ast: Expr, env: Env = new Map()): Value => {
 		const value = evaluate(ast.value, env);
 		if (!isTuple(value)) {
 			throw new Error(
-				"Expected tuple, got " + (value === null ? "null" : typeof value)
+				"Expected tuple, got " + (value === null ? "null" : typeof value),
 			);
 		}
 		const newEnv = new Map(env);
@@ -90,7 +140,7 @@ export const evaluate = (ast: Expr, env: Env = new Map()): Value => {
 		const func = evaluate(ast.func, env);
 		if (!isClosure(func)) {
 			throw new Error(
-				"Expected closure, got " + (func === null ? "null" : typeof func)
+				"Expected closure, got " + (func === null ? "null" : typeof func),
 			);
 		}
 		const argValues = ast.args.map((arg) => evaluate(arg, env));
@@ -98,7 +148,7 @@ export const evaluate = (ast: Expr, env: Env = new Map()): Value => {
 		func.args.forEach((argName, i) => {
 			if (argValues[i] === undefined) {
 				throw new Error(
-					"Expected argument, got undefined for argument " + argName
+					"Expected argument, got undefined for argument " + argName,
 				);
 			}
 			newEnv.set(argName, argValues[i]);
