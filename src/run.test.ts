@@ -230,20 +230,20 @@ describe("run", () => {
 
 		test("配列に値を代入して取得できる", () => {
 			expect(
-				run("let a = Array.create 3 0 in let u = a.(0) <- 10 in a.(0)"),
+				run("let a = Array.create 3 0 in let _ = a.(0) <- 10 in a.(0)"),
 			).toBe(10);
 		});
 
 		test("代入していない要素は初期値のまま", () => {
 			expect(
-				run("let a = Array.create 3 0 in let u = a.(0) <- 10 in a.(1)"),
+				run("let a = Array.create 3 0 in let _ = a.(0) <- 10 in a.(1)"),
 			).toBe(0);
 		});
 
 		test("複数回代入できる", () => {
 			expect(
 				run(
-					"let a = Array.create 3 0 in let u = a.(0) <- 5 in let v = a.(1) <- 10 in a.(1)",
+					"let a = Array.create 3 0 in let _ = a.(0) <- 5 in let _ = a.(1) <- 10 in a.(1)",
 				),
 			).toBe(10);
 		});
@@ -261,7 +261,7 @@ describe("run", () => {
 		test("配列のインデックスに式を使える", () => {
 			expect(
 				run(
-					"let a = Array.create 3 0 in let u = a.(0) <- 99 in let i = 0 in a.(i)",
+					"let a = Array.create 3 0 in let _ = a.(0) <- 99 in let i = 0 in a.(i)",
 				),
 			).toBe(99);
 		});
@@ -269,7 +269,7 @@ describe("run", () => {
 		test("配列と関数を組み合わせられる", () => {
 			expect(
 				run(
-					"let a = Array.create 3 0 in let rec getelem arr i = arr.(i) in let u = a.(1) <- 42 in getelem a 1",
+					"let a = Array.create 3 0 in let rec getelem arr i = arr.(i) in let _ = a.(1) <- 42 in getelem a 1",
 				),
 			).toBe(42);
 		});

@@ -39,7 +39,7 @@ const isDigit = (char?: string): boolean => {
 
 const isAlphabet = (char?: string): boolean => {
 	if (!char) return false;
-	return char.match(/^[a-zA-Z]+$/) !== null;
+	return char.match(/^[a-zA-Z_]+$/) !== null;
 };
 
 const keywords = new Map<string, Token["type"]>([
