@@ -236,15 +236,18 @@ const inferInternal = (ast: Expr, ctx: TypeContext): Type => {
 		const argTypes = ast.func.args.map(newVar);
 		const retType = newVar();
 		const funcType: Type = { type: "TFun", args: argTypes, ret: retType };
-		const newEnv = new Map(typeEnv);
-		newEnv.set(ast.func.name, funcType);
+		// 関数本体用: 関数名 + 引数
+		const funcEnv = new Map(typeEnv);
+		funcEnv.set(ast.func.name, funcType);
 		ast.func.args.forEach((arg, i) => {
-			newEnv.set(arg, argTypes[i]!);
+			funcEnv.set(arg, argTypes[i]!);
 		});
-		const newCtx = { ...ctx, typeEnv: newEnv };
-		const bodyType = inferInternal(ast.func.body, newCtx);
+		const bodyType = inferInternal(ast.func.body, { ...ctx, typeEnv: funcEnv });
 		unify(retType, bodyType);
-		return inferInternal(ast.body, newCtx);
+		// 継続用: 関数名のみ（引数は含めない）
+		const contEnv = new Map(typeEnv);
+		contEnv.set(ast.func.name, funcType);
+		return inferInternal(ast.body, { ...ctx, typeEnv: contEnv });
 	}
 	if (ast.type === "App") {
 		const func = inferInternal(ast.func, ctx);
